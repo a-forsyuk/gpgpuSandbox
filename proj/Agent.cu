@@ -1,7 +1,14 @@
+#include "Agent.cuh"
 #include "AgentsKernel.cuh"
 #include "CustomVectorOperations.cuh"
+
 #include <math_constants.h>
 #include <curand_kernel.h>
+
+texture<float4, cudaTextureType1D, cudaReadModeElementType> g_previousAgentsPositions;
+texture<int4, cudaTextureType1D, cudaReadModeElementType> g_neighborsData;
+texture<int2, cudaTextureType1D, cudaReadModeElementType> g_agentsHashes;
+
 __host__ __device__ Agent::Agent()
 {
 	_velocity = make_float2(0,0);

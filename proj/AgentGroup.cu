@@ -1,14 +1,22 @@
-#include <math_functions.h>
+#include "AgentGroup.cuh"
 #include "AgentsKernel.cuh"
+#include "Map.cuh"
+
+#include <math_functions.h>
 #include <cuda_runtime.h>
 #include <vector_types.h>
 #include <texture_fetch_functions.h>
+
+#include <device_launch_parameters.h>
+
+extern texture<float4, cudaTextureType1D, cudaReadModeElementType> g_previousAgentsPositions;
+extern texture<int4, cudaTextureType1D, cudaReadModeElementType> g_neighborsData;
+extern texture<int2, cudaTextureType1D, cudaReadModeElementType> g_agentsHashes;
 
 __host__  AgentGroup::AgentGroup(int agentsCount) :
 	_agentsCount(agentsCount)
 {
 	cudaError_t status;
-	//_agents = new Agent[agentsCount];
 	status = cudaMallocHost(&_agents, sizeof(Agent)*_agentsCount);
 	int sqrtAgentsCount = sqrt(static_cast<float>(_agentsCount));
 	unsigned int actualAgentsCount = 0;
@@ -44,8 +52,8 @@ __host__  AgentGroup::AgentGroup(int agentsCount) :
 		_agentsCount,
 		0);
 	status = cudaMemcpyToArray(_previousAgentsArray, 0, 0, _agentPositionVelocity, sizeof(float4)*_agentsCount, cudaMemcpyDeviceToDevice);
-	g_obstaclesTexture.normalized = false;
-	status = cudaBindTextureToArray(g_previousAgentsPositions, _previousAgentsArray);
+	//g_obstaclesTexture.normalized = false;
+	status = cudaBindTextureToArray(&g_previousAgentsPositions, _previousAgentsArray, &agentsTextureDesc);
 
 	thrust::host_vector<int2> tempAgentsHashes = thrust::host_vector<int2>();
 	for (int i = 0; i<_agentsCount;i++)
@@ -60,7 +68,7 @@ __host__  AgentGroup::AgentGroup(int agentsCount) :
 		0);
 	status = cudaMemcpyToArray(_agentsHashesArray, 0, 0, thrust::raw_pointer_cast(&_agentsHashes[0]), sizeof(int2)*_agentsCount, cudaMemcpyDeviceToDevice);
 	g_agentsHashes.normalized = false;
-	status = cudaBindTextureToArray(g_agentsHashes, _agentsHashesArray);
+	status = cudaBindTextureToArray(&g_agentsHashes, _agentsHashesArray, &hashesTextureDesc);
 
 
 	thrust::host_vector<int4> tempNeighborsData = thrust::host_vector<int4>();
@@ -76,7 +84,7 @@ __host__  AgentGroup::AgentGroup(int agentsCount) :
 		0);
 	status = cudaMemcpyToArray(_neighborsDataArray, 0, 0, thrust::raw_pointer_cast(&_neighborsData[0]), sizeof(int4)*_neighborsData.size(), cudaMemcpyDeviceToDevice);
 	g_neighborsData.normalized = false;
-	status = cudaBindTextureToArray(g_neighborsData, _neighborsDataArray);
+	status = cudaBindTextureToArray(&g_neighborsData, _neighborsDataArray, &neighborsTextureDesc);
 	//cudaMalloc((void**)&_d_agents, sizeof(Agent)*agentsCount);
 	//cudaMemcpy(_d_agents, tempAgents, sizeof(Agent)*agentsCount, cudaMemcpyHostToDevice);
 
@@ -200,13 +208,6 @@ __global__ void UpdateAgentsKernel(//int3* neighborsData,
 				neighbors[neighborsCounter++] =  tex1D(g_agentsHashes, i).x;
 			}
 		}
-		/*int3 nodeData = _neighborsData[nodeId];
-		for (int i = nodeData.y; i<nodeData.y+nodeData.z;i++)
-		{
-			float2 agentPos = _agents[(_agentsHashes[i]).x].Position();
-			_agents[(_agentsHashes[i]).x].Color(make_float4(1.0f/(GetNodeX(agentPos.x, _neighborsDataDim)+1), 1.0f/(GetNodeY(agentPos.y, _neighborsDataDim)+1),(GetNodeX(agentPos.x, _neighborsDataDim))/(GetNodeY(agentPos.y, _neighborsDataDim)+1),1.0f));
-			_agents[(_agentsHashes[i]).x].Update(_elapsedTime, neighbors, neighborsCount);
-		}*/
 		agent.Update(elapsedTime, neighbors, neighborsCount, boundary);
 		delete [] neighbors;
 		//syncthreads();

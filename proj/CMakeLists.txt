@@ -14,6 +14,8 @@ add_library(kernels STATIC
     Map.cu
     Map.cuh
   )
+
+#target_compile_definitions(kernels PUBLIC __CUDACC__)
  
 # Request that particles be built with -std=c++11
 # As this is a public compile feature anything that links to 
@@ -42,3 +44,8 @@ target_link_libraries(launcher PRIVATE kernels)
 target_link_libraries(launcher PRIVATE DXUT)
 target_link_libraries(launcher PRIVATE DXUTOpt)
 target_link_libraries(launcher PRIVATE Effects11)
+
+if(WIN32)
+    target_compile_definitions(launcher PRIVATE _UNICODE UNICODE)
+    target_compile_definitions(launcher PRIVATE _WIN32_WINNT=0x0601)
+endif()

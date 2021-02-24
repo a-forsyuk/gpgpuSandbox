@@ -22,11 +22,10 @@
 #include "d3dx11effect.h"
 #include "SDKmisc.h"
 
-#pragma region cuda functions import
-extern "C" void InitializeMapNodes(int dimensionX, int dimensionY);
-extern "C" void InitializeMap(size_t dimensionX, size_t dimensionY, unsigned int* obstaclesMap);
-extern "C" void GetObstacleValue(unsigned int* result);
-#pragma endregion cuda functions import
+//#pragma region cuda functions import
+//extern "C" void InitializeMap(size_t dimensionX, size_t dimensionY, unsigned int* obstaclesMap);
+//extern "C" void GetObstacleValue(unsigned int* result);
+//#pragma endregion cuda functions import
 
 using namespace DirectX;
 
@@ -54,58 +53,11 @@ CModelViewerCamera g_Camera;
 AgentGroup* g_pAgentsGroup = NULL;
 const UINT AgentsCount = 6144;
 
-int _tmain(int argc, _TCHAR* argv[])
-{
-	int deviceCount = 0;
-	int deviceIndex = 0;
-	cudaError_t status = cudaGetDeviceCount(&deviceCount);
-	cudaDeviceProp deviceProp = cudaDeviceProp();
-	for(int i = 0;i<deviceCount;i++)
-	{
-		cudaGetDeviceProperties(&deviceProp, i);
-		if(deviceProp.major==2)
-			deviceIndex = i;
-	}
-	cudaError_t error = cudaSetDevice(deviceIndex);
-
-	Map::Initialize(make_int2(0,0), make_int2(1600,1600), 40, 40, 100);
-	g_pAgentsGroup = new AgentGroup(AgentsCount);
-	
-	DXUTSetCallbackD3D11DeviceAcceptable( IsD3D11DeviceAcceptable );
-	DXUTSetCallbackD3D11DeviceCreated( OnD3D11CreateDevice );
-	DXUTSetCallbackD3D11SwapChainResized( OnD3D11ResizedSwapChain );
-	DXUTSetCallbackD3D11SwapChainReleasing( OnD3D11ReleasingSwapChain );
-	DXUTSetCallbackD3D11DeviceDestroyed( OnD3D11DestroyDevice );
-	DXUTSetCallbackD3D11FrameRender( OnD3D11FrameRender );
-
-	DXUTSetCallbackMsgProc( MsgProc );
-	DXUTSetCallbackKeyboard( OnKeyboard );
-	DXUTSetCallbackFrameMove( OnFrameMove );
-	DXUTSetCallbackDeviceChanging( ModifyDeviceSettings );
-
-	DXUTInit( true, true, NULL ); // Parse the command line, show msgboxes on error, no extra command line params
-	DXUTSetCursorSettings( true, true ); // Show the cursor and clip it when in full screen
-	DXUTCreateWindow( L"Tutorial08" );
-	DXUTCreateDevice( D3D_FEATURE_LEVEL_11_1, true, 1280, 768 );
-	DXUTSetConstantFrameTime(true);
-	DXUTMainLoop(); // Enter into the DXUT render loop
-
-	return DXUTGetExitCode();            
-
-
-	InitializeMapNodes(10,10);
-
-	#pragma region temp
-#pragma endregion temp
-}
-
-
-
 //--------------------------------------------------------------------------------------
 // Reject any D3D10 devices that aren't acceptable by returning false
 //--------------------------------------------------------------------------------------
-bool CALLBACK IsD3D11DeviceAcceptable(const CD3D11EnumAdapterInfo* AdapterInfo, UINT Output, const CD3D11EnumDeviceInfo* DeviceInfo,
-	DXGI_FORMAT BackBufferFormat, bool bWindowed, void* pUserContext)
+bool CALLBACK IsD3D11DeviceAcceptable(_In_ const CD3D11EnumAdapterInfo* AdapterInfo, _In_ UINT Output, _In_ const CD3D11EnumDeviceInfo* DeviceInfo,
+	_In_ DXGI_FORMAT BackBufferFormat, _In_ bool bWindowed, _In_opt_ void* pUserContext)
 {
 	return DeviceInfo->DeviceType == D3D_DRIVER_TYPE_HARDWARE && bWindowed;
 }
@@ -125,7 +77,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	hr = D3DX11CreateEffectFromFile( L"Shader.fx", 0, pd3dDevice, &g_pEffect);
 	if( FAILED( hr ) )
 	{
-		MessageBox( NULL, "The FX file cannot be located.  Please run this executable from the directory that contains the FX file.", "Error", MB_OK );
+		MessageBox( NULL, L"The FX file cannot be located.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK );
 		V_RETURN( hr );
 	}
 
@@ -321,14 +273,13 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 // Create any D3D10 resources that depend on the back buffer
 // Create and set the depth stencil texture if needed
 //--------------------------------------------------------------------------------------
-HRESULT CALLBACK OnD3D10ResizedSwapChain( ID3D10Device* pd3dDevice, IDXGISwapChain* pSwapChain,
-	const DXGI_SURFACE_DESC* pBufferSurfaceDesc, void* pUserContext )
+HRESULT CALLBACK OnD3D11ResizedSwapChain(_In_ ID3D11Device* pd3dDevice, _In_ IDXGISwapChain* pSwapChain, _In_ const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc, _In_opt_ void* pUserContext)
 {
 	// Setup the camera's projection parameters
-	float fAspectRatio = static_cast<float>( pBufferSurfaceDesc->Width ) /
-		static_cast<float>( pBufferSurfaceDesc->Height );
+	float fAspectRatio = static_cast<float>(pBackBufferSurfaceDesc->Width ) /
+		static_cast<float>(pBackBufferSurfaceDesc->Height );
 	g_Camera.SetProjParams( XM_PI / 4, fAspectRatio, 0.1f, 5000.0f );
-	g_Camera.SetWindow( pBufferSurfaceDesc->Width, pBufferSurfaceDesc->Height );
+	g_Camera.SetWindow(pBackBufferSurfaceDesc->Width, pBackBufferSurfaceDesc->Height );
 	g_Camera.SetButtonMasks( MOUSE_MIDDLE_BUTTON, MOUSE_WHEEL, MOUSE_LEFT_BUTTON );
 	g_Camera.SetEnablePositionMovement(true);
 	XMFLOAT4X4 projMatrix;
@@ -342,7 +293,7 @@ HRESULT CALLBACK OnD3D10ResizedSwapChain( ID3D10Device* pd3dDevice, IDXGISwapCha
 //--------------------------------------------------------------------------------------
 // Render the scene using the D3D10 device
 //--------------------------------------------------------------------------------------
-void CALLBACK OnD3D10FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, double fTime, float fElapsedTime, void* pUserContext)
+void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, double fTime, float fElapsedTime, void* pUserContext)
 {
 	float ClearColor[4] = { 0.1f, 0.1f, 0.1f, 0.1f }; // red, green, blue, alpha
 	ID3D11RenderTargetView* pRTV = DXUTGetD3D11RenderTargetView();
@@ -399,7 +350,7 @@ void CALLBACK OnD3D10FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 //--------------------------------------------------------------------------------------
 // Release D3D10 resources created in OnD3D10ResizedSwapChain 
 //--------------------------------------------------------------------------------------
-void CALLBACK OnD3D10ReleasingSwapChain( void* pUserContext )
+void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
 {
 }
 
@@ -407,7 +358,7 @@ void CALLBACK OnD3D10ReleasingSwapChain( void* pUserContext )
 //--------------------------------------------------------------------------------------
 // Release D3D10 resources created in OnD3D10CreateDevice 
 //--------------------------------------------------------------------------------------
-void CALLBACK OnD3D10DestroyDevice( void* pUserContext )
+void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 {
 	SAFE_RELEASE( g_pAxisVertexBuffer );
 	SAFE_RELEASE( g_pMapVertexBuffer );
@@ -489,4 +440,46 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 			break;
 		}
 	}
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+	int deviceCount = 0;
+	int deviceIndex = 0;
+	cudaError_t status = cudaGetDeviceCount(&deviceCount);
+	cudaDeviceProp deviceProp = cudaDeviceProp();
+	for (int i = 0; i < deviceCount; i++)
+	{
+		cudaGetDeviceProperties(&deviceProp, i);
+		if (deviceProp.major == 2)
+			deviceIndex = i;
+	}
+	cudaError_t error = cudaSetDevice(deviceIndex);
+
+	Map::Initialize(make_float2(0.0f, 0), make_float2(1600.0f, 1600.0f), 40, 40, 100);
+	g_pAgentsGroup = new AgentGroup(AgentsCount);
+
+	DXUTSetCallbackD3D11DeviceAcceptable(IsD3D11DeviceAcceptable);
+	DXUTSetCallbackD3D11DeviceCreated(OnD3D11CreateDevice);
+	DXUTSetCallbackD3D11SwapChainResized(OnD3D11ResizedSwapChain);
+	DXUTSetCallbackD3D11SwapChainReleasing(OnD3D11ReleasingSwapChain);
+	DXUTSetCallbackD3D11DeviceDestroyed(OnD3D11DestroyDevice);
+	DXUTSetCallbackD3D11FrameRender(OnD3D11FrameRender);
+
+	DXUTSetCallbackMsgProc(MsgProc);
+	DXUTSetCallbackKeyboard(OnKeyboard);
+	DXUTSetCallbackFrameMove(OnFrameMove);
+	DXUTSetCallbackDeviceChanging(ModifyDeviceSettings);
+
+	DXUTInit(true, true, NULL); // Parse the command line, show msgboxes on error, no extra command line params
+	DXUTSetCursorSettings(true, true); // Show the cursor and clip it when in full screen
+	DXUTCreateWindow(L"Tutorial08");
+	DXUTCreateDevice(D3D_FEATURE_LEVEL_11_1, true, 1280, 768);
+	DXUTSetConstantFrameTime(true);
+	DXUTMainLoop(); // Enter into the DXUT render loop
+
+	return DXUTGetExitCode();
+
+#pragma region temp
+#pragma endregion temp
 }
