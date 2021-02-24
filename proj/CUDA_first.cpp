@@ -2,25 +2,23 @@
 //
 
 #include "stdafx.h"
-#include <cuda.h>
-#include <cuda_runtime.h>
 #include "CUDA_first.h"
 #include <assert.h>
-#include "Map.cuh"
 #include <iostream>
-//#include "PathResult.cuh"
 #include "DXUT.h"
 #include "DXUTcamera.h"
+
 #include "VertexPositionTexture.h"
-
-#include <DirectXMath.h>
-
-#include "AgentGroup.cuh"
 #include "VertexPositionColor.h"
 #include "TransformColorInstBatch.h"
 
 #include "d3dx11effect.h"
 #include "SDKmisc.h"
+
+#include "Map.cuh"
+#include "Agent.cuh"
+
+#include <DirectXMath.h>
 
 //#pragma region cuda functions import
 //extern "C" void InitializeMap(size_t dimensionX, size_t dimensionY, unsigned int* obstaclesMap);
@@ -338,7 +336,6 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	pd3dImmediateContext->IASetPrimitiveTopology( D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pd3dImmediateContext->IASetInputLayout( g_pVertexLayout );
 	g_pTechnique->GetDesc( &techDesc );
-	size_t agentSize = sizeof(Agent);
 	for( UINT p = 0; p < techDesc.Passes; ++p )
 	{
 			g_pTechnique->GetPassByIndex( p )->Apply( 0, pd3dImmediateContext);
