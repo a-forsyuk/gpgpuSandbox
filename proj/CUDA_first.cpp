@@ -306,7 +306,11 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	g_Camera.SetViewParams( Eye, At );
 
 	// Update Variables that never change
-	g_pViewVariable->SetMatrix( ( float* )g_Camera.GetViewMatrix() );
+
+	XMFLOAT4X4 viewMatrix;
+	XMStoreFloat4x4(&viewMatrix, g_Camera.GetViewMatrix());
+
+	g_pViewVariable->SetMatrix( (float*)viewMatrix.m );
 	g_pDiffuseVariable->SetResource( g_pTextureRV );
 
 	return S_OK;
@@ -327,7 +331,9 @@ HRESULT CALLBACK OnD3D10ResizedSwapChain( ID3D10Device* pd3dDevice, IDXGISwapCha
 	g_Camera.SetWindow( pBufferSurfaceDesc->Width, pBufferSurfaceDesc->Height );
 	g_Camera.SetButtonMasks( MOUSE_MIDDLE_BUTTON, MOUSE_WHEEL, MOUSE_LEFT_BUTTON );
 	g_Camera.SetEnablePositionMovement(true);
-	g_pProjectionVariable->SetMatrix( ( float* )g_Camera.GetProjMatrix() );
+	XMFLOAT4X4 projMatrix;
+	XMStoreFloat4x4(&projMatrix, g_Camera.GetProjMatrix());
+	g_pProjectionVariable->SetMatrix( ( float* )projMatrix.m );
 
 	return S_OK;
 }
@@ -345,8 +351,13 @@ void CALLBACK OnD3D10FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	ID3D11DepthStencilView* pDSV = DXUTGetD3D11DepthStencilView();
 	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D10_CLEAR_DEPTH, 1.0, 0 );
 
-	g_pViewVariable->SetMatrix((float*)g_Camera.GetViewMatrix());
-	g_pProjectionVariable->SetMatrix((float*)g_Camera.GetProjMatrix());
+	XMFLOAT4X4 viewMatrix;
+	XMStoreFloat4x4(&viewMatrix, g_Camera.GetViewMatrix());
+	g_pViewVariable->SetMatrix((float*)viewMatrix.m);
+
+	XMFLOAT4X4 projMatrix;
+	XMStoreFloat4x4(&projMatrix, g_Camera.GetProjMatrix());
+	g_pProjectionVariable->SetMatrix((float*)projMatrix.m);
 	g_pWorldVariable->SetMatrix( ( float* )&g_World );
 
 	// Set vertex buffer
@@ -359,7 +370,7 @@ void CALLBACK OnD3D10FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	g_pColorTechnique->GetDesc(&techDesc);
 	for( UINT p = 0; p < techDesc.Passes; ++p )
 	{
-		g_pColorTechnique->GetPassByIndex(p)->Apply( 0 );
+		g_pColorTechnique->GetPassByIndex(p)->Apply( 0 , pd3dImmediateContext);
 		pd3dImmediateContext->Draw(6,0);
 	}
 
@@ -379,7 +390,7 @@ void CALLBACK OnD3D10FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	size_t agentSize = sizeof(Agent);
 	for( UINT p = 0; p < techDesc.Passes; ++p )
 	{
-			g_pTechnique->GetPassByIndex( p )->Apply( 0 );
+			g_pTechnique->GetPassByIndex( p )->Apply( 0, pd3dImmediateContext);
 			pd3dImmediateContext->DrawIndexedInstanced( 36, AgentsCount, 0, 0, 0 );
 	}
 }
@@ -426,7 +437,11 @@ bool CALLBACK ModifyDeviceSettings( DXUTDeviceSettings* pDeviceSettings, void* p
 void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext )
 {
 	TransformColorInstBatch* instanceData;
-	DXUTGetD3D11DeviceContext()->Map(g_pAgentsInstanceData, 0, D3D11_MAP_WRITE_DISCARD, NULL, (void**)&instanceData);
+	D3D11_MAPPED_SUBRESOURCE mappedSubresource;
+	mappedSubresource.pData = &instanceData;
+	mappedSubresource.RowPitch = 0;
+	mappedSubresource.DepthPitch = 0;
+	DXUTGetD3D11DeviceContext()->Map(g_pAgentsInstanceData, 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
 	Agent* agents = g_pAgentsGroup->Agents();
 	for (int i=0;i<g_pAgentsGroup->AgentsCount();i++)
 	{
