@@ -40,16 +40,17 @@ ID3D11Buffer* g_pAxisVertexBuffer = NULL;
 ID3D11Buffer* g_pMapVertexBuffer = NULL;
 ID3D11Buffer* g_pIndexBuffer = NULL;
 ID3D11Buffer* g_pAgentsInstanceData = NULL;
-ID3D11ShaderResourceView* g_pTextureRV = NULL;
+//ID3D11ShaderResourceView* g_pTextureRV = NULL;
 ID3DX11EffectMatrixVariable* g_pWorldVariable = NULL;
 ID3DX11EffectMatrixVariable* g_pViewVariable = NULL;
 ID3DX11EffectMatrixVariable* g_pProjectionVariable = NULL;
-ID3DX11EffectShaderResourceVariable* g_pDiffuseVariable = NULL;
+//ID3DX11EffectShaderResourceVariable* g_pDiffuseVariable = NULL;
 ID3DX11EffectVectorVariable* g_pMeshColorVariable = NULL;
 XMMATRIX g_World;
 CModelViewerCamera g_Camera;
 AgentGroup* g_pAgentsGroup = NULL;
 const UINT AgentsCount = 6144;
+TransformColorInstBatch* instanceData = nullptr;
 
 //--------------------------------------------------------------------------------------
 // Reject any D3D10 devices that aren't acceptable by returning false
@@ -92,7 +93,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	g_pWorldVariable = g_pEffect->GetVariableByName( "World" )->AsMatrix();
 	g_pViewVariable = g_pEffect->GetVariableByName( "View" )->AsMatrix();
 	g_pProjectionVariable = g_pEffect->GetVariableByName( "Projection" )->AsMatrix();
-	g_pDiffuseVariable = g_pEffect->GetVariableByName( "txDiffuse" )->AsShaderResource();
+	//g_pDiffuseVariable = g_pEffect->GetVariableByName( "txDiffuse" )->AsShaderResource();
 	g_pMeshColorVariable = g_pEffect->GetVariableByName( "vMeshColor" )->AsVector();
 
 	// Create the input layout
@@ -142,7 +143,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	D3D11_BUFFER_DESC bd;
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.ByteWidth = sizeof( VertexPositionTexture ) * 24;
-	bd.BindFlags = D3D10_BIND_VERTEX_BUFFER;
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	bd.MiscFlags = 0;
 	D3D11_SUBRESOURCE_DATA InitData;
@@ -186,7 +187,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.ByteWidth = sizeof( DWORD ) * 36;
-	bd.BindFlags = D3D10_BIND_INDEX_BUFFER;
+	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	bd.MiscFlags = 0;
 	InitData.pSysMem = indices;
@@ -254,7 +255,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pMapVertexBuffer ) );
 
 	// Load the Texture
-	hr = DXUTCreateShaderResourceViewFromFile( pd3dDevice, L"seafloor.dds", &g_pTextureRV );
+	//hr = DXUTCreateShaderResourceViewFromFile( pd3dDevice, L"seafloor.dds", &g_pTextureRV );
 	// Initialize the world matrices
 	g_World = XMMatrixIdentity();
 
@@ -269,7 +270,9 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	XMStoreFloat4x4(&viewMatrix, g_Camera.GetViewMatrix());
 
 	g_pViewVariable->SetMatrix( (float*)viewMatrix.m );
-	g_pDiffuseVariable->SetResource( g_pTextureRV );
+	//g_pDiffuseVariable->SetResource( g_pTextureRV );
+
+	instanceData = new TransformColorInstBatch[g_pAgentsGroup->AgentsCount()];
 
 	return S_OK;
 }
@@ -306,7 +309,7 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	pd3dImmediateContext->ClearRenderTargetView( pRTV, ClearColor );
 
 	ID3D11DepthStencilView* pDSV = DXUTGetD3D11DepthStencilView();
-	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D10_CLEAR_DEPTH, 1.0, 0 );
+	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0, 0 );
 
 	XMFLOAT4X4 viewMatrix;
 	XMStoreFloat4x4(&viewMatrix, g_Camera.GetViewMatrix());
@@ -321,7 +324,7 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	UINT stride = sizeof( VertexPositionColor );
 	UINT offset = 0;
 	pd3dImmediateContext->IASetVertexBuffers( 0, 1, &g_pAxisVertexBuffer, &stride, &offset );
-	pd3dImmediateContext->IASetPrimitiveTopology( D3D10_PRIMITIVE_TOPOLOGY_LINELIST);
+	pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 	pd3dImmediateContext->IASetInputLayout( g_pVertexPositionColorLayout );
 	D3DX11_TECHNIQUE_DESC techDesc;
 	g_pColorTechnique->GetDesc(&techDesc);
@@ -341,7 +344,7 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	stride = sizeof( VertexPositionTexture );
 	offset = 0;
 	pd3dImmediateContext->IASetVertexBuffers( 0, 1, &g_pVertexBuffer, &stride, &offset );
-	pd3dImmediateContext->IASetPrimitiveTopology( D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pd3dImmediateContext->IASetInputLayout( g_pVertexLayout );
 	g_pTechnique->GetDesc( &techDesc );
 	for( UINT p = 0; p < techDesc.Passes; ++p )
@@ -372,7 +375,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	SAFE_RELEASE( g_pIndexBuffer );
 	SAFE_RELEASE( g_pVertexLayout );
 	SAFE_RELEASE( g_pVertexPositionColorLayout );
-	SAFE_RELEASE( g_pTextureRV );
+	//SAFE_RELEASE( g_pTextureRV );
 	SAFE_RELEASE( g_pEffect );
 	cudaDeviceReset();
 }
@@ -392,28 +395,37 @@ bool CALLBACK ModifyDeviceSettings( DXUTDeviceSettings* pDeviceSettings, void* p
 //--------------------------------------------------------------------------------------
 void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext )
 {
-	TransformColorInstBatch* instanceData;
+	//instanceData = new TransformColorInstBatch[g_pAgentsGroup->AgentsCount()];
 	D3D11_MAPPED_SUBRESOURCE mappedSubresource;
 	mappedSubresource.pData = &instanceData;
 	mappedSubresource.RowPitch = 0;
 	mappedSubresource.DepthPitch = 0;
 	DXUTGetD3D11DeviceContext()->Map(g_pAgentsInstanceData, 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
 	Agent* agents = g_pAgentsGroup->Agents();
+	XMFLOAT3 identityF{ 1.0f, 1.0f, 1.0f };
+	XMVECTOR identity = XMLoadFloat3(&identityF);
 	for (int i=0;i<g_pAgentsGroup->AgentsCount();i++)
 	{
 		Agent agent = agents[i];
-		float2 agentPosition = agent.Position();
-		XMMATRIX translateMatrix = XMMatrixTranslation(agentPosition.x, agentPosition.y, 0.0f);
-		XMMATRIX rotateMatrix = XMMatrixRotationZ(agent.VelocityAngle());
-		translateMatrix = XMMatrixMultiply(translateMatrix, g_World);
-		translateMatrix = XMMatrixMultiply(rotateMatrix, translateMatrix);
+		//float2 agentPosition = agent.Position();
+		XMFLOAT3 translation{ agent.Position().x, agent.Position().y, 0.0f };
+		XMVECTOR rotateMatrix = XMQuaternionRotationRollPitchYaw(0.0f, 0.0f, agent.VelocityAngle());
+		
+		XMMATRIX translateMatrix = XMMatrixAffineTransformation(
+			identity, 
+			XMLoadFloat3(&translation),
+			rotateMatrix, 
+			XMLoadFloat3(&translation)
+		);
+		/*translateMatrix = XMMatrixMultiply(translateMatrix, g_World);
+		translateMatrix = XMMatrixMultiply(translateMatrix, rotateMatrix);*/
 		XMFLOAT4X4 matrix4x4;
 		XMStoreFloat4x4(&matrix4x4, translateMatrix);
 		instanceData[i].Transform = matrix4x4;
 		instanceData[i].Color = XMFLOAT4(agent.color.x, agent.color.y, agent.color.z, 1.0f);
 	}
 	DXUTGetD3D11DeviceContext()->Unmap(g_pAgentsInstanceData, 0);
-	//g_pAgentsGroup->Update(fElapsedTime);
+	g_pAgentsGroup->Update(fElapsedTime);
 	g_Camera.FrameMove(fElapsedTime);
 	/*if(fTime>30.0f)
 		DXUTShutdown();*/

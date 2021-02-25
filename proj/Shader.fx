@@ -8,13 +8,13 @@
 //--------------------------------------------------------------------------------------
 // Constant Buffer Variables
 //--------------------------------------------------------------------------------------
-Texture2D txDiffuse;
-SamplerState samLinear
-{
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = Wrap;
-    AddressV = Wrap;
-};
+//Texture2D txDiffuse;
+//SamplerState samLinear
+//{
+//    Filter = MIN_MAG_MIP_LINEAR;
+//    AddressU = Wrap;
+//    AddressV = Wrap;
+//};
 
 cbuffer cbNeverChanges
 {
@@ -105,9 +105,10 @@ void GS( triangle PS_INPUT input[3], inout TriangleStream<PS_INPUT> triStream)
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
-float4 PS( PS_INPUT input) : SV_Target
+float4 PS(PS_INPUT input) : SV_Target
 {
-    return txDiffuse.Sample( samLinear, input.Tex ) * input.Col;// * vMeshColor;
+    return input.Col;
+    //txDiffuse.Sample(samLinear, input.Tex)* input.Col;// * vMeshColor;
 }
 
 
