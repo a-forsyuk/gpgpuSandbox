@@ -112,13 +112,13 @@ float4 PS( PS_INPUT input) : SV_Target
 
 
 //--------------------------------------------------------------------------------------
-technique10 Render
+technique11 Render
 {
     pass P0
     {
-        SetVertexShader( CompileShader( vs_4_0, VS() ) );
-        SetGeometryShader( CompileShader( gs_4_0, GS() ) );
-        SetPixelShader( CompileShader( ps_4_0, PS() ) );
+        SetVertexShader( CompileShader( vs_5_0, VS() ) );
+        SetGeometryShader( CompileShader(gs_5_0, GS() ) );
+        SetPixelShader( CompileShader(ps_5_0, PS() ) );
     }
 }
 
@@ -146,12 +146,12 @@ float4 PS_COLOR( PS_Color_INPUT input) : SV_Target
 }
 
 //--------------------------------------------------------------------------------------
-technique10 RenderPositionColor
+technique11 RenderPositionColor
 {
     pass P0
     {
-        SetVertexShader( CompileShader( vs_4_0, VS_COLOR() ) );
+        SetVertexShader( CompileShader(vs_5_0, VS_COLOR() ) );
         SetGeometryShader( NULL );
-        SetPixelShader( CompileShader( ps_4_0, PS_COLOR() ) );
+        SetPixelShader( CompileShader(ps_5_0, PS_COLOR() ) );
     }
 }

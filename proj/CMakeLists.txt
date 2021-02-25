@@ -29,6 +29,8 @@ add_executable(launcher
     CustomVectorOperations.cuh
     Map.cu
     Map.cuh
+
+    Shader.fx
 )
 
 set_target_properties( launcher
@@ -40,9 +42,27 @@ target_compile_features(launcher PUBLIC cxx_std_14)
 #             PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 #target_link_libraries(launcher PRIVATE kernels)
 target_compile_definitions(launcher PUBLIC DXUT_AUTOLIB)
-target_link_libraries(launcher PRIVATE DXUT DXUTOpt Effects11 Usp10.lib)
+target_link_libraries(launcher 
+    PRIVATE
+    DXUT
+    DXUTOpt
+    Effects11
+    Usp10.lib
+    d3dcompiler.lib)
 
 if(WIN32)
     target_compile_definitions(launcher PRIVATE _UNICODE UNICODE)
     target_compile_definitions(launcher PRIVATE _WIN32_WINNT=0x0601)
 endif()
+
+add_custom_command(
+    TARGET launcher POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_SOURCE_DIR}/Shader.fx
+            $<TARGET_FILE_DIR:launcher>/Shader.fx)
+
+add_custom_command(
+    TARGET launcher POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/D3D/$<IF:$<EQUAL:${CMAKE_SIZEOF_VOID_P},4>,x86,x64>/
+            $<TARGET_FILE_DIR:launcher>/)

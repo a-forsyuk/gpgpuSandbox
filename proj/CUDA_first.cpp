@@ -68,11 +68,19 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 {
 	HRESULT hr = S_OK;
 
-//	DWORD dwShaderFlags = D3D10_SHADER_ENABLE_STRICTNESS;
-//#if defined( DEBUG ) || defined( _DEBUG )
-//	dwShaderFlags |= D3D10_SHADER_DEBUG;
-//#endif
-	hr = D3DX11CreateEffectFromFile( L"Shader.fx", 0, pd3dDevice, &g_pEffect);
+	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+#ifdef _DEBUG
+	// Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
+	// Setting this flag improves the shader debugging experience, but still allows 
+	// the shaders to be optimized and to run exactly the way they will run in 
+	// the release configuration of this program.
+	dwShaderFlags |= D3DCOMPILE_DEBUG;
+
+	// Disable optimizations to further improve shader debugging
+	dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+	ID3DBlob* pErrorBlob = nullptr;
+	hr = D3DX11CompileEffectFromFile(L"Shader.fx", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, pd3dDevice, &g_pEffect, &pErrorBlob);
 	if( FAILED( hr ) )
 	{
 		MessageBox( NULL, L"The FX file cannot be located.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK );
