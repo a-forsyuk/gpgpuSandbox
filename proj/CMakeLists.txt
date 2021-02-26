@@ -34,7 +34,10 @@ add_executable(launcher
 )
 
 set_target_properties( launcher
-                       PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+                       PROPERTIES CUDA_SEPARABLE_COMPILATION ON
+                       VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:launcher>"
+                       VS_DEBUGGER_COMMAND "$<TARGET_FILE:launcher>")
+                       #VS_DEBUGGER_ENVIRONMENT "PATH=%PATH%;${CMAKE_PREFIX_PATH}/bin")
 
 target_compile_features(launcher PUBLIC cxx_std_14) 
 

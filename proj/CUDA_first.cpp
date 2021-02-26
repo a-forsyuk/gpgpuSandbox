@@ -8,7 +8,7 @@
 #include "DXUT.h"
 #include "DXUTcamera.h"
 
-#include "VertexPositionTexture.h"
+//#include "VertexPositionTexture.h"
 #include "VertexPositionColor.h"
 #include "TransformColorInstBatch.h"
 
@@ -35,10 +35,10 @@ ID3D11InputLayout* g_pVertexLayout = NULL;
 ID3D11InputLayout* g_pVertexPositionColorLayout = NULL;
 ID3DX11EffectTechnique* g_pTechnique = NULL;
 ID3DX11EffectTechnique* g_pColorTechnique = NULL;
-ID3D11Buffer* g_pVertexBuffer = NULL;
+//ID3D11Buffer* g_pVertexBuffer = NULL;
 ID3D11Buffer* g_pAxisVertexBuffer = NULL;
 ID3D11Buffer* g_pMapVertexBuffer = NULL;
-ID3D11Buffer* g_pIndexBuffer = NULL;
+//ID3D11Buffer* g_pIndexBuffer = NULL;
 ID3D11Buffer* g_pAgentsInstanceData = NULL;
 //ID3D11ShaderResourceView* g_pTextureRV = NULL;
 ID3DX11EffectMatrixVariable* g_pWorldVariable = NULL;
@@ -58,6 +58,7 @@ TransformColorInstBatch* instanceData = nullptr;
 bool CALLBACK IsD3D11DeviceAcceptable(_In_ const CD3D11EnumAdapterInfo* AdapterInfo, _In_ UINT Output, _In_ const CD3D11EnumDeviceInfo* DeviceInfo,
 	_In_ DXGI_FORMAT BackBufferFormat, _In_ bool bWindowed, _In_opt_ void* pUserContext)
 {
+
 	return DeviceInfo->DeviceType == D3D_DRIVER_TYPE_HARDWARE && bWindowed;
 }
 
@@ -99,7 +100,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	// Create the input layout
 	D3DX11_PASS_DESC PassDesc;
 	g_pTechnique->GetPassByIndex( 0 )->GetDesc( &PassDesc );
-	V_RETURN( pd3dDevice->CreateInputLayout( VertexPositionTexture::VertexDescription, VertexPositionTexture::VertexDescriptionElementsCount, PassDesc.pIAInputSignature,
+	V_RETURN( pd3dDevice->CreateInputLayout( VertexPositionColor::VertexDescription, VertexPositionColor::VertexDescriptionElementsCount, PassDesc.pIAInputSignature,
 		PassDesc.IAInputSignatureSize, &g_pVertexLayout ) );
 
 	g_pColorTechnique->GetPassByIndex( 0 )->GetDesc( &PassDesc );
@@ -107,40 +108,40 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 		PassDesc.IAInputSignatureSize, &g_pVertexPositionColorLayout ) );
 
 	// Create vertex buffer
-	VertexPositionTexture vertices[] =
-	{
-		{ XMFLOAT3{ -0.5f, 0.5f, 0.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-		{ XMFLOAT3{ 0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-		{ XMFLOAT3{ 0.5f, 0.5f, 2.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-		{ XMFLOAT3{ -0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
+	//VertexPositionTexture vertices[] =
+	//{
+	//	{ XMFLOAT3{ -0.5f, 0.5f, 0.0f }, XMFLOAT2{ 0.0f, 0.0f } },
+	//	{ XMFLOAT3{ 0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
+	//	{ XMFLOAT3{ 0.5f, 0.5f, 2.0f }, XMFLOAT2{ 1.0f, 1.0f } },
+	//	{ XMFLOAT3{ -0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
 
-		{ XMFLOAT3{ -0.5f, -0.5f, 0.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-		{ XMFLOAT3{ 0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-		{ XMFLOAT3{ 0.5f, -0.5f, 2.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-		{ XMFLOAT3{ -0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
+	//	{ XMFLOAT3{ -0.5f, -0.5f, 0.0f }, XMFLOAT2{ 0.0f, 0.0f } },
+	//	{ XMFLOAT3{ 0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
+	//	{ XMFLOAT3{ 0.5f, -0.5f, 2.0f }, XMFLOAT2{ 1.0f, 1.0f } },
+	//	{ XMFLOAT3{ -0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
 
-		{ XMFLOAT3{ -0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-		{ XMFLOAT3{ -0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-		{ XMFLOAT3{ -0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-		{ XMFLOAT3{ -0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
+	//	{ XMFLOAT3{ -0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 0.0f } },
+	//	{ XMFLOAT3{ -0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
+	//	{ XMFLOAT3{ -0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 1.0f } },
+	//	{ XMFLOAT3{ -0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
 
-		{ XMFLOAT3{ 0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-		{ XMFLOAT3{ 0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-		{ XMFLOAT3{ 0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-		{ XMFLOAT3{ 0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
+	//	{ XMFLOAT3{ 0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 0.0f } },
+	//	{ XMFLOAT3{ 0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
+	//	{ XMFLOAT3{ 0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 1.0f } },
+	//	{ XMFLOAT3{ 0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
 
-		{ XMFLOAT3{ -0.5f, -0.5f, 0.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-		{ XMFLOAT3{ 0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-		{ XMFLOAT3{ 0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-		{ XMFLOAT3{ -0.5f, 0.5f, 0.0f }, XMFLOAT2{ 0.0f, 1.0f } },
+	//	{ XMFLOAT3{ -0.5f, -0.5f, 0.0f }, XMFLOAT2{ 0.0f, 0.0f } },
+	//	{ XMFLOAT3{ 0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
+	//	{ XMFLOAT3{ 0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 1.0f } },
+	//	{ XMFLOAT3{ -0.5f, 0.5f, 0.0f }, XMFLOAT2{ 0.0f, 1.0f } },
 
-		{ XMFLOAT3{ -0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-		{ XMFLOAT3{ 0.5f, -0.5f, 2.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-		{ XMFLOAT3{ 0.5f, 0.5f, 2.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-		{ XMFLOAT3{ -0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
-	};
+	//	{ XMFLOAT3{ -0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 0.0f } },
+	//	{ XMFLOAT3{ 0.5f, -0.5f, 2.0f }, XMFLOAT2{ 1.0f, 0.0f } },
+	//	{ XMFLOAT3{ 0.5f, 0.5f, 2.0f }, XMFLOAT2{ 1.0f, 1.0f } },
+	//	{ XMFLOAT3{ -0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
+	//};
 
-	D3D11_BUFFER_DESC bd;
+	/*D3D11_BUFFER_DESC bd;
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.ByteWidth = sizeof( VertexPositionTexture ) * 24;
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -148,53 +149,53 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	bd.MiscFlags = 0;
 	D3D11_SUBRESOURCE_DATA InitData;
 	InitData.pSysMem = vertices;
-	V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pVertexBuffer ) );
+	V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pVertexBuffer ) );*/
 
 	D3D11_BUFFER_DESC bufferDesc;
-	bufferDesc.ByteWidth = AgentsCount * sizeof( TransformColorInstBatch ),
+	bufferDesc.ByteWidth = AgentsCount * sizeof( VertexPositionColor ),
 	bufferDesc.Usage = D3D11_USAGE_DYNAMIC,
 	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER,
 	bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
 	bufferDesc.MiscFlags = 0;
 
 	V_RETURN( pd3dDevice->CreateBuffer( &bufferDesc, NULL, &g_pAgentsInstanceData ) );
-	UINT stride = sizeof(TransformColorInstBatch);
+	UINT stride = sizeof(VertexPositionColor);
 	UINT offset = 0;
-	DXUTGetD3D11DeviceContext()->IASetVertexBuffers(1, 1, &g_pAgentsInstanceData, &stride, &offset);
+	DXUTGetD3D11DeviceContext()->IASetVertexBuffers(0, 1, &g_pAgentsInstanceData, &stride, &offset);
 
-	// Create index buffer
-	// Create vertex buffer
-	DWORD indices[] =
-	{
-		3,1,0,
-		2,1,3,
+	//// Create index buffer
+	//// Create vertex buffer
+	//DWORD indices[] =
+	//{
+	//	3,1,0,
+	//	2,1,3,
 
-		6,4,5,
-		7,4,6,
+	//	6,4,5,
+	//	7,4,6,
 
-		11,9,8,
-		10,9,11,
+	//	11,9,8,
+	//	10,9,11,
 
-		14,12,13,
-		15,12,14,
+	//	14,12,13,
+	//	15,12,14,
 
-		19,17,16,
-		18,17,19,
+	//	19,17,16,
+	//	18,17,19,
 
-		22,20,21,
-		23,20,22
-	};
+	//	22,20,21,
+	//	23,20,22
+	//};
 
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof( DWORD ) * 36;
-	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bd.CPUAccessFlags = 0;
-	bd.MiscFlags = 0;
-	InitData.pSysMem = indices;
-	V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pIndexBuffer ) );
+	//bd.Usage = D3D11_USAGE_DEFAULT;
+	//bd.ByteWidth = sizeof( DWORD ) * 36;
+	//bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	//bd.CPUAccessFlags = 0;
+	//bd.MiscFlags = 0;
+	//InitData.pSysMem = indices;
+	//V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pIndexBuffer ) );
 
-	// Set index buffer
-	DXUTGetD3D11DeviceContext()->IASetIndexBuffer( g_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0 );
+	//// Set index buffer
+	//DXUTGetD3D11DeviceContext()->IASetIndexBuffer( g_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0 );
 
 	///Axis///
 
@@ -210,13 +211,14 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 		{ XMFLOAT3{ 0.0f, 0.0f, 0.0f }, XMFLOAT4{ 0.0f, 0.0f, 1.0f, 1.0f} },
 	};
 
+	D3D11_BUFFER_DESC bd;
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.ByteWidth = sizeof( VertexPositionColor ) * 6;
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	bd.MiscFlags = 0;
 	
-
+	D3D11_SUBRESOURCE_DATA InitData;
 	InitData.pSysMem = axisVertices;
 	V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pAxisVertexBuffer ) );
 
@@ -340,18 +342,29 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 		g_pColorTechnique->GetPassByIndex(p)->Apply( 0, pd3dImmediateContext);
 		pd3dImmediateContext->Draw((Map::HeightNodesCount()+1)*2+(Map::WidthNodesCount()+1)*2,0);
 	}
-	// Set vertex buffer
-	stride = sizeof( VertexPositionTexture );
+	stride = sizeof(VertexPositionColor);
 	offset = 0;
-	pd3dImmediateContext->IASetVertexBuffers( 0, 1, &g_pVertexBuffer, &stride, &offset );
-	pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	DXUTGetD3D11DeviceContext()->IASetVertexBuffers(0, 1, &g_pAgentsInstanceData, &stride, &offset);
+	pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 	pd3dImmediateContext->IASetInputLayout( g_pVertexLayout );
 	g_pTechnique->GetDesc( &techDesc );
 	for( UINT p = 0; p < techDesc.Passes; ++p )
 	{
 			g_pTechnique->GetPassByIndex( p )->Apply( 0, pd3dImmediateContext);
-			pd3dImmediateContext->DrawIndexedInstanced( 36, AgentsCount, 0, 0, 0 );
+			pd3dImmediateContext->Draw( AgentsCount, 0 );
 	}
+	// Set vertex buffer
+	//stride = sizeof( VertexPositionTexture );
+	//offset = 0;
+	//pd3dImmediateContext->IASetVertexBuffers( 0, 1, &g_pVertexBuffer, &stride, &offset );
+	//pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//pd3dImmediateContext->IASetInputLayout( g_pVertexLayout );
+	//g_pTechnique->GetDesc( &techDesc );
+	//for( UINT p = 0; p < techDesc.Passes; ++p )
+	//{
+	//		g_pTechnique->GetPassByIndex( p )->Apply( 0, pd3dImmediateContext);
+	//		pd3dImmediateContext->DrawIndexedInstanced( 36, AgentsCount, 0, 0, 0 );
+	//}
 }
 
 
@@ -370,9 +383,9 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 {
 	SAFE_RELEASE( g_pAxisVertexBuffer );
 	SAFE_RELEASE( g_pMapVertexBuffer );
-	SAFE_RELEASE( g_pVertexBuffer );
+	//SAFE_RELEASE( g_pVertexBuffer );
 	SAFE_RELEASE( g_pAgentsInstanceData);
-	SAFE_RELEASE( g_pIndexBuffer );
+	//SAFE_RELEASE( g_pIndexBuffer );
 	SAFE_RELEASE( g_pVertexLayout );
 	SAFE_RELEASE( g_pVertexPositionColorLayout );
 	//SAFE_RELEASE( g_pTextureRV );
@@ -427,8 +440,6 @@ void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext 
 	DXUTGetD3D11DeviceContext()->Unmap(g_pAgentsInstanceData, 0);
 	g_pAgentsGroup->Update(fElapsedTime);
 	g_Camera.FrameMove(fElapsedTime);
-	/*if(fTime>30.0f)
-		DXUTShutdown();*/
 }
 
 
@@ -496,7 +507,4 @@ int _tmain(int argc, _TCHAR* argv[])
 	DXUTMainLoop(); // Enter into the DXUT render loop
 
 	return DXUTGetExitCode();
-
-#pragma region temp
-#pragma endregion temp
 }
