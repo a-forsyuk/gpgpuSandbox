@@ -44,19 +44,19 @@ PS_INPUT VS( VS_INPUT input )
 }
 
 
-[maxvertexcount(3)]   // produce a maximum of 3 output vertices
+[maxvertexcount(2)]   // produce a maximum of 3 output vertices
 void GS( point PS_INPUT input[1], inout LineStream<PS_INPUT> triStream)
 {
   /*[unroll] for( uint i = 0; i < 3; i++ )
   {*/
 
-    PS_INPUT psInput;
+    PS_INPUT psInput = (PS_INPUT)0;
     psInput.Pos = input[0].Pos;
     psInput.Col = input[0].Col;
     triStream.Append(psInput);
 
-    PS_INPUT psInput2;
-    psInput2.Pos = input[0].Pos + float4(0.0, 0.0, 20.0, 0.0);
+    PS_INPUT psInput2 = (PS_INPUT)0;
+    psInput2.Pos = input[0].Pos + float4(0.0, 10.0, 0.0, 0.0);
     psInput2.Col = input[0].Col;
     triStream.Append(psInput2);
 
