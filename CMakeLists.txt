@@ -7,6 +7,5 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 add_subdirectory(proj)
 add_subdirectory(DXUT)
-add_subdirectory(FX11-master)
 
 SET(VS_STARTUP_PROJECT launcher)

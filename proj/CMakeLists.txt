@@ -70,6 +70,7 @@ set(CPP_SRCS
     TransformColorInstBatch.h
     VertexPositionColor.h
     VertexPositionTexture.h
+    ConstantBuffer.h
 )
 source_group(cpp FILES ${CPP_SRCS})
 
@@ -96,7 +97,7 @@ target_link_libraries(launcher
     PRIVATE
     DXUT
     DXUTOpt
-    Effects11
+    #Effects11
     Usp10.lib
     d3dcompiler.lib)
 

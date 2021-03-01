@@ -11,8 +11,8 @@
 //#include "VertexPositionTexture.h"
 #include "VertexPositionColor.h"
 #include "TransformColorInstBatch.h"
+#include "ConstantBuffer.h"
 
-#include "d3dx11effect.h"
 #include "SDKmisc.h"
 
 #include "Map.cuh"
@@ -45,22 +45,19 @@ using namespace DirectX;
 //--------------------------------------------------------------------------------------
 // Global Variables
 //--------------------------------------------------------------------------------------
-ID3DX11Effect* g_pEffect = nullptr;
 ID3D11InputLayout* g_pVertexLayout = nullptr;
 ID3D11InputLayout* g_pVertexPositionColorLayout = nullptr;
-ID3DX11EffectTechnique* g_pTechnique = nullptr;
-ID3DX11EffectTechnique* g_pColorTechnique = nullptr;
 ID3D11Buffer* g_pAxisVertexBuffer = nullptr;
 ID3D11Buffer* g_pMapVertexBuffer = nullptr;
 ID3D11Buffer* g_pAgentsInstanceData = nullptr;
-ID3DX11EffectMatrixVariable* g_pWorldVariable = nullptr;
-ID3DX11EffectMatrixVariable* g_pViewVariable = nullptr;
-ID3DX11EffectMatrixVariable* g_pProjectionVariable = nullptr;
-ID3DX11EffectVectorVariable* g_pMeshColorVariable = nullptr;
+ID3D11Buffer* g_pConstantBuffer = NULL;
+CONSTANT_BUFFER cBuffer;
 
-ID3D11VertexShader* g_plainVertexShader = nullptr;
+ID3D11VertexShader* g_pPlainVertexShader = nullptr;
+ID3D11VertexShader* g_pWorldVewProjectionVs = nullptr;
+ID3D11GeometryShader* g_pGeometryShader = nullptr;
+ID3D11PixelShader* g_pPixelShader = nullptr;
 
-XMMATRIX g_World;
 CModelViewerCamera g_Camera;
 AgentGroup* g_pAgentsGroup = nullptr;
 const UINT AgentsCount = 6144;
@@ -84,43 +81,26 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 {
 	HRESULT hr = S_OK;
 
-	V_RETURN(pd3dDevice->CreateVertexShader(PlainVs::g_main, sizeof(PlainVs::g_main), nullptr, &g_plainVertexShader));
+	V_RETURN(pd3dDevice->CreateVertexShader(PlainVs::g_main, sizeof(PlainVs::g_main), nullptr, &g_pPlainVertexShader));
+	V_RETURN(pd3dDevice->CreateVertexShader(WorldVewProjectionVs::g_main, sizeof(WorldVewProjectionVs::g_main), nullptr, &g_pWorldVewProjectionVs));
+	V_RETURN(pd3dDevice->CreateGeometryShader(GeometryShader::g_main, sizeof(GeometryShader::g_main), nullptr, &g_pGeometryShader));
+	V_RETURN(pd3dDevice->CreatePixelShader(PixelShader::g_main, sizeof(PixelShader::g_main), nullptr, &g_pPixelShader));
 
-	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-#ifdef _DEBUG
-	// Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
-	// Setting this flag improves the shader debugging experience, but still allows 
-	// the shaders to be optimized and to run exactly the way they will run in 
-	// the release configuration of this program.
-	dwShaderFlags |= D3DCOMPILE_DEBUG;
+	V_RETURN( pd3dDevice->CreateInputLayout( 
+		VertexPositionColor::VertexDescription, 
+		VertexPositionColor::VertexDescriptionElementsCount, 
+		PlainVs::g_main,
+		sizeof(PlainVs::g_main),
+		&g_pVertexLayout ) 
+	);
 
-	// Disable optimizations to further improve shader debugging
-	dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
-	ID3DBlob* pErrorBlob = nullptr;
-	hr = D3DX11CompileEffectFromFile(L"Shader.fx", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, pd3dDevice, &g_pEffect, &pErrorBlob);
-	if( FAILED( hr ) )
-	{
-		MessageBox( NULL, L"The FX file cannot be located.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK );
-		V_RETURN( hr );
-	}
-
-	g_pTechnique = g_pEffect->GetTechniqueByName( "Render" );
-	g_pColorTechnique = g_pEffect->GetTechniqueByName( "RenderPositionColor" );
-	g_pWorldVariable = g_pEffect->GetVariableByName( "World" )->AsMatrix();
-	g_pViewVariable = g_pEffect->GetVariableByName( "View" )->AsMatrix();
-	g_pProjectionVariable = g_pEffect->GetVariableByName( "Projection" )->AsMatrix();
-	g_pMeshColorVariable = g_pEffect->GetVariableByName( "vMeshColor" )->AsVector();
-
-	// Create the input layout
-	D3DX11_PASS_DESC PassDesc;
-	g_pTechnique->GetPassByIndex( 0 )->GetDesc( &PassDesc );
-	V_RETURN( pd3dDevice->CreateInputLayout( VertexPositionColor::VertexDescription, VertexPositionColor::VertexDescriptionElementsCount, PassDesc.pIAInputSignature,
-		PassDesc.IAInputSignatureSize, &g_pVertexLayout ) );
-
-	g_pColorTechnique->GetPassByIndex( 0 )->GetDesc( &PassDesc );
-	V_RETURN( pd3dDevice->CreateInputLayout( VertexPositionColor::VertexDescription, VertexPositionColor::VertexDescriptionElementsCount, PassDesc.pIAInputSignature,
-		PassDesc.IAInputSignatureSize, &g_pVertexPositionColorLayout ) );
+	V_RETURN( pd3dDevice->CreateInputLayout(
+		VertexPositionColor::VertexDescription, 
+		VertexPositionColor::VertexDescriptionElementsCount, 
+		WorldVewProjectionVs::g_main,
+		sizeof(WorldVewProjectionVs::g_main),
+		&g_pVertexPositionColorLayout ) 
+	);
 
 	D3D11_BUFFER_DESC bufferDesc;
 	bufferDesc.ByteWidth = AgentsCount * sizeof( VertexPositionColor ),
@@ -135,7 +115,6 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	DXUTGetD3D11DeviceContext()->IASetVertexBuffers(0, 1, &g_pAgentsInstanceData, &stride, &offset);
 
 	///Axis///
-
 	VertexPositionColor axisVertices[] =
 	{
 		{ XMFLOAT3{ 100.0f, 0.0f, 0.0f }, XMFLOAT4{ 1.0f, 0.0f, 0.0f, 1.0f} },
@@ -193,25 +172,27 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	InitData.pSysMem = mapLinesVertices;
 	V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pMapVertexBuffer ) );
 
-	// Load the Texture
-	//hr = DXUTCreateShaderResourceViewFromFile( pd3dDevice, L"seafloor.dds", &g_pTextureRV );
-	// Initialize the world matrices
-	g_World = XMMatrixIdentity();
-
 	// Initialize the view matrix
 	XMVECTORF32 Eye { Map::WorldWidth() / 2.0f, 0.0f, 100.0f };
 	XMVECTORF32 At { Map::WorldWidth() / 2.0f, Map::WorldHeight() / 2.0f, 0.0f };
 	g_Camera.SetViewParams( Eye, At );
 
-	// Update Variables that never change
-
-	XMFLOAT4X4 viewMatrix;
-	XMStoreFloat4x4(&viewMatrix, g_Camera.GetViewMatrix());
-
-	g_pViewVariable->SetMatrix( (float*)viewMatrix.m );
-	//g_pDiffuseVariable->SetResource( g_pTextureRV );
-
 	instanceData = new VertexPositionColor[g_pAgentsGroup->AgentsCount()];
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA InitData2;
+	InitData2.pSysMem = &cBuffer;
+	InitData2.SysMemPitch = 0;
+	InitData2.SysMemSlicePitch = 0;
+
+	D3D11_BUFFER_DESC cbDesc;
+	ZeroMemory(&cbDesc, sizeof(D3D11_BUFFER_DESC));
+	cbDesc.Usage = D3D11_USAGE_DEFAULT;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.ByteWidth = sizeof(CONSTANT_BUFFER);
+
+	// Create the buffer.
+	V_RETURN(pd3dDevice->CreateBuffer(&cbDesc, &InitData2, &g_pConstantBuffer));
 
 	return S_OK;
 }
@@ -230,9 +211,6 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain(_In_ ID3D11Device* pd3dDevice, _In_ IDX
 	g_Camera.SetWindow(pBackBufferSurfaceDesc->Width, pBackBufferSurfaceDesc->Height );
 	g_Camera.SetButtonMasks( MOUSE_MIDDLE_BUTTON, MOUSE_WHEEL, MOUSE_LEFT_BUTTON );
 	g_Camera.SetEnablePositionMovement(true);
-	XMFLOAT4X4 projMatrix;
-	XMStoreFloat4x4(&projMatrix, g_Camera.GetProjMatrix());
-	g_pProjectionVariable->SetMatrix( ( float* )projMatrix.m );
 
 	return S_OK;
 }
@@ -250,14 +228,15 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	ID3D11DepthStencilView* pDSV = DXUTGetD3D11DepthStencilView();
 	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0, 0 );
 
-	XMFLOAT4X4 viewMatrix;
-	XMStoreFloat4x4(&viewMatrix, g_Camera.GetViewMatrix());
-	g_pViewVariable->SetMatrix((float*)viewMatrix.m);
-
-	XMFLOAT4X4 projMatrix;
-	XMStoreFloat4x4(&projMatrix, g_Camera.GetProjMatrix());
-	g_pProjectionVariable->SetMatrix((float*)projMatrix.m);
-	g_pWorldVariable->SetMatrix( ( float* )&g_World );
+	XMStoreFloat4x4(
+		&cBuffer.viewProjection,
+		XMMatrixMultiply(
+			XMMatrixIdentity(),
+			XMMatrixMultiply(
+				g_Camera.GetViewMatrix(),
+				g_Camera.GetProjMatrix()))
+	);
+	pd3dImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cBuffer, 0, 0);
 
 	// Set vertex buffer
 	UINT stride = sizeof( VertexPositionColor );
@@ -265,26 +244,19 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	pd3dImmediateContext->IASetVertexBuffers( 0, 1, &g_pAxisVertexBuffer, &stride, &offset );
 	pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 	pd3dImmediateContext->IASetInputLayout( g_pVertexPositionColorLayout );
-	D3DX11_TECHNIQUE_DESC techDesc;
-	g_pColorTechnique->GetDesc(&techDesc);
-	for( UINT p = 0; p < techDesc.Passes; ++p )
-	{
-		g_pColorTechnique->GetPassByIndex(p)->Apply( 0 , pd3dImmediateContext);
-		pd3dImmediateContext->Draw(6,0);
-	}
+
+	pd3dImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	pd3dImmediateContext->VSSetShader(g_pWorldVewProjectionVs, nullptr, 0);
+	pd3dImmediateContext->GSSetShader(nullptr, nullptr, 0);
+	pd3dImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
+	pd3dImmediateContext->Draw(6, 0);
 
 	pd3dImmediateContext->IASetVertexBuffers( 0, 1, &g_pMapVertexBuffer, &stride, &offset );
-	for( UINT p = 0; p < techDesc.Passes; ++p )
-	{
-		g_pColorTechnique->GetPassByIndex(p)->Apply( 0, pd3dImmediateContext);
-		pd3dImmediateContext->Draw((Map::HeightNodesCount()+1)*2+(Map::WidthNodesCount()+1)*2,0);
-	}
+
+	pd3dImmediateContext->Draw((Map::HeightNodesCount() + 1) * 2 + (Map::WidthNodesCount() + 1) * 2, 0);
 
 	D3D11_MAPPED_SUBRESOURCE mappedSubresource;
 	ZeroMemory(&mappedSubresource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-	//mappedSubresource.pData = &instanceData;
-	//mappedSubresource.RowPitch = 0;
-	//mappedSubresource.DepthPitch = 0;
 	HRESULT res = DXUTGetD3D11DeviceContext()->Map(g_pAgentsInstanceData, 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
 	Agent* agents = g_pAgentsGroup->Agents();
 	for (int i = 0; i < g_pAgentsGroup->AgentsCount(); i++)
@@ -304,25 +276,13 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	DXUTGetD3D11DeviceContext()->IASetVertexBuffers(0, 1, &g_pAgentsInstanceData, &stride, &offset);
 	pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 	pd3dImmediateContext->IASetInputLayout( g_pVertexLayout );
-	g_pTechnique->GetDesc( &techDesc );
-	for( UINT p = 0; p < techDesc.Passes; ++p )
-	{
-			g_pTechnique->GetPassByIndex( p )->Apply( 0, pd3dImmediateContext);
-			pd3dImmediateContext->Draw( AgentsCount, 0 );
-	}
 
-	// Set vertex buffer
-	//stride = sizeof( VertexPositionTexture );
-	//offset = 0;
-	//pd3dImmediateContext->IASetVertexBuffers( 0, 1, &g_pVertexBuffer, &stride, &offset );
-	//pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	//pd3dImmediateContext->IASetInputLayout( g_pVertexLayout );
-	//g_pTechnique->GetDesc( &techDesc );
-	//for( UINT p = 0; p < techDesc.Passes; ++p )
-	//{
-	//		g_pTechnique->GetPassByIndex( p )->Apply( 0, pd3dImmediateContext);
-	//		pd3dImmediateContext->DrawIndexedInstanced( 36, AgentsCount, 0, 0, 0 );
-	//}
+	pd3dImmediateContext->VSSetShader(g_pPlainVertexShader, nullptr, 0);
+	pd3dImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	pd3dImmediateContext->GSSetShader(g_pGeometryShader, nullptr, 0);
+	pd3dImmediateContext->GSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	pd3dImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
+	pd3dImmediateContext->Draw(AgentsCount, 0);
 }
 
 
@@ -347,7 +307,8 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	SAFE_RELEASE( g_pVertexLayout );
 	SAFE_RELEASE( g_pVertexPositionColorLayout );
 	//SAFE_RELEASE( g_pTextureRV );
-	SAFE_RELEASE( g_pEffect );
+	//SAFE_RELEASE( g_pEffect );
+	SAFE_RELEASE(g_pConstantBuffer)
 	cudaDeviceReset();
 }
 
