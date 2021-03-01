@@ -20,35 +20,49 @@
 
 #include <DirectXMath.h>
 
-//#pragma region cuda functions import
-//extern "C" void InitializeMap(size_t dimensionX, size_t dimensionY, unsigned int* obstaclesMap);
-//extern "C" void GetObstacleValue(unsigned int* result);
-//#pragma endregion cuda functions import
+namespace WorldVewProjectionVs
+{
+#include "WorldVewProjectionVs.h"
+}
+
+namespace PlainVs
+{
+#include "PlainVs.h"
+}
+
+namespace GeometryShader
+{
+#include "GeometryShader.h"
+}
+
+namespace PixelShader
+{
+#include "PixelShader.h"
+}
 
 using namespace DirectX;
 
 //--------------------------------------------------------------------------------------
 // Global Variables
 //--------------------------------------------------------------------------------------
-ID3DX11Effect* g_pEffect = NULL;
-ID3D11InputLayout* g_pVertexLayout = NULL;
-ID3D11InputLayout* g_pVertexPositionColorLayout = NULL;
-ID3DX11EffectTechnique* g_pTechnique = NULL;
-ID3DX11EffectTechnique* g_pColorTechnique = NULL;
-//ID3D11Buffer* g_pVertexBuffer = NULL;
-ID3D11Buffer* g_pAxisVertexBuffer = NULL;
-ID3D11Buffer* g_pMapVertexBuffer = NULL;
-//ID3D11Buffer* g_pIndexBuffer = NULL;
-ID3D11Buffer* g_pAgentsInstanceData = NULL;
-//ID3D11ShaderResourceView* g_pTextureRV = NULL;
-ID3DX11EffectMatrixVariable* g_pWorldVariable = NULL;
-ID3DX11EffectMatrixVariable* g_pViewVariable = NULL;
-ID3DX11EffectMatrixVariable* g_pProjectionVariable = NULL;
-//ID3DX11EffectShaderResourceVariable* g_pDiffuseVariable = NULL;
-ID3DX11EffectVectorVariable* g_pMeshColorVariable = NULL;
+ID3DX11Effect* g_pEffect = nullptr;
+ID3D11InputLayout* g_pVertexLayout = nullptr;
+ID3D11InputLayout* g_pVertexPositionColorLayout = nullptr;
+ID3DX11EffectTechnique* g_pTechnique = nullptr;
+ID3DX11EffectTechnique* g_pColorTechnique = nullptr;
+ID3D11Buffer* g_pAxisVertexBuffer = nullptr;
+ID3D11Buffer* g_pMapVertexBuffer = nullptr;
+ID3D11Buffer* g_pAgentsInstanceData = nullptr;
+ID3DX11EffectMatrixVariable* g_pWorldVariable = nullptr;
+ID3DX11EffectMatrixVariable* g_pViewVariable = nullptr;
+ID3DX11EffectMatrixVariable* g_pProjectionVariable = nullptr;
+ID3DX11EffectVectorVariable* g_pMeshColorVariable = nullptr;
+
+ID3D11VertexShader* g_plainVertexShader = nullptr;
+
 XMMATRIX g_World;
 CModelViewerCamera g_Camera;
-AgentGroup* g_pAgentsGroup = NULL;
+AgentGroup* g_pAgentsGroup = nullptr;
 const UINT AgentsCount = 6144;
 VertexPositionColor* instanceData = nullptr;
 
@@ -69,6 +83,8 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	void* pUserContext )
 {
 	HRESULT hr = S_OK;
+
+	V_RETURN(pd3dDevice->CreateVertexShader(PlainVs::g_main, sizeof(PlainVs::g_main), nullptr, &g_plainVertexShader));
 
 	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 #ifdef _DEBUG
@@ -94,7 +110,6 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	g_pWorldVariable = g_pEffect->GetVariableByName( "World" )->AsMatrix();
 	g_pViewVariable = g_pEffect->GetVariableByName( "View" )->AsMatrix();
 	g_pProjectionVariable = g_pEffect->GetVariableByName( "Projection" )->AsMatrix();
-	//g_pDiffuseVariable = g_pEffect->GetVariableByName( "txDiffuse" )->AsShaderResource();
 	g_pMeshColorVariable = g_pEffect->GetVariableByName( "vMeshColor" )->AsVector();
 
 	// Create the input layout
@@ -107,50 +122,6 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	V_RETURN( pd3dDevice->CreateInputLayout( VertexPositionColor::VertexDescription, VertexPositionColor::VertexDescriptionElementsCount, PassDesc.pIAInputSignature,
 		PassDesc.IAInputSignatureSize, &g_pVertexPositionColorLayout ) );
 
-	// Create vertex buffer
-	//VertexPositionTexture vertices[] =
-	//{
-	//	{ XMFLOAT3{ -0.5f, 0.5f, 0.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-	//	{ XMFLOAT3{ 0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-	//	{ XMFLOAT3{ 0.5f, 0.5f, 2.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-	//	{ XMFLOAT3{ -0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
-
-	//	{ XMFLOAT3{ -0.5f, -0.5f, 0.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-	//	{ XMFLOAT3{ 0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-	//	{ XMFLOAT3{ 0.5f, -0.5f, 2.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-	//	{ XMFLOAT3{ -0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
-
-	//	{ XMFLOAT3{ -0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-	//	{ XMFLOAT3{ -0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-	//	{ XMFLOAT3{ -0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-	//	{ XMFLOAT3{ -0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
-
-	//	{ XMFLOAT3{ 0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-	//	{ XMFLOAT3{ 0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-	//	{ XMFLOAT3{ 0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-	//	{ XMFLOAT3{ 0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
-
-	//	{ XMFLOAT3{ -0.5f, -0.5f, 0.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-	//	{ XMFLOAT3{ 0.5f, -0.5f, 0.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-	//	{ XMFLOAT3{ 0.5f, 0.5f, 0.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-	//	{ XMFLOAT3{ -0.5f, 0.5f, 0.0f }, XMFLOAT2{ 0.0f, 1.0f } },
-
-	//	{ XMFLOAT3{ -0.5f, -0.5f, 2.0f }, XMFLOAT2{ 0.0f, 0.0f } },
-	//	{ XMFLOAT3{ 0.5f, -0.5f, 2.0f }, XMFLOAT2{ 1.0f, 0.0f } },
-	//	{ XMFLOAT3{ 0.5f, 0.5f, 2.0f }, XMFLOAT2{ 1.0f, 1.0f } },
-	//	{ XMFLOAT3{ -0.5f, 0.5f, 2.0f }, XMFLOAT2{ 0.0f, 1.0f } },
-	//};
-
-	/*D3D11_BUFFER_DESC bd;
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof( VertexPositionTexture ) * 24;
-	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bd.CPUAccessFlags = 0;
-	bd.MiscFlags = 0;
-	D3D11_SUBRESOURCE_DATA InitData;
-	InitData.pSysMem = vertices;
-	V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pVertexBuffer ) );*/
-
 	D3D11_BUFFER_DESC bufferDesc;
 	bufferDesc.ByteWidth = AgentsCount * sizeof( VertexPositionColor ),
 	bufferDesc.Usage = D3D11_USAGE_DYNAMIC,
@@ -162,40 +133,6 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	UINT stride = sizeof(VertexPositionColor);
 	UINT offset = 0;
 	DXUTGetD3D11DeviceContext()->IASetVertexBuffers(0, 1, &g_pAgentsInstanceData, &stride, &offset);
-
-	//// Create index buffer
-	//// Create vertex buffer
-	//DWORD indices[] =
-	//{
-	//	3,1,0,
-	//	2,1,3,
-
-	//	6,4,5,
-	//	7,4,6,
-
-	//	11,9,8,
-	//	10,9,11,
-
-	//	14,12,13,
-	//	15,12,14,
-
-	//	19,17,16,
-	//	18,17,19,
-
-	//	22,20,21,
-	//	23,20,22
-	//};
-
-	//bd.Usage = D3D11_USAGE_DEFAULT;
-	//bd.ByteWidth = sizeof( DWORD ) * 36;
-	//bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	//bd.CPUAccessFlags = 0;
-	//bd.MiscFlags = 0;
-	//InitData.pSysMem = indices;
-	//V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pIndexBuffer ) );
-
-	//// Set index buffer
-	//DXUTGetD3D11DeviceContext()->IASetIndexBuffer( g_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0 );
 
 	///Axis///
 

@@ -4,23 +4,53 @@ if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
   set(CMAKE_CUDA_ARCHITECTURES 61)
 endif()
 
-#add_library(kernels STATIC  )
+SET (SHADER_SRCS
+    shaders/GeometryShader.hlsl
+    shaders/Header.hlsli
+    shaders/PixelShader.hlsl
+    shaders/PlainVs.hlsl
+    shaders/WorldVewProjectionVs.hlsl
+)
+set_source_files_properties(
+    shaders/PlainVs.hlsl 
+    PROPERTIES
+        VS_SHADER_TYPE Vertex
+        VS_SHADER_OUTPUT_HEADER_FILE ${CMAKE_CURRENT_BINARY_DIR}/PlainVs.h
+    )
+set_source_files_properties(
+    shaders/GeometryShader.hlsl
+    PROPERTIES
+        VS_SHADER_TYPE Geometry
+        VS_SHADER_OUTPUT_HEADER_FILE ${CMAKE_CURRENT_BINARY_DIR}/GeometryShader.h
+    )
+set_source_files_properties(
+    shaders/PixelShader.hlsl
+    PROPERTIES
+    VS_SHADER_TYPE Pixel
+    VS_SHADER_OUTPUT_HEADER_FILE ${CMAKE_CURRENT_BINARY_DIR}/PixelShader.h
+    )
+set_source_files_properties(
+    shaders/WorldVewProjectionVs.hlsl
+    PROPERTIES
+        VS_SHADER_TYPE Vertex
+        VS_SHADER_OUTPUT_HEADER_FILE ${CMAKE_CURRENT_BINARY_DIR}/WorldVewProjectionVs.h
+    )
+set_source_files_properties(
+    ${SHADER_SRCS}
+    PROPERTIES
+        VS_SHADER_DISABLE_OPTIMIZATIONS TRUE
+        VS_SHADER_ENABLE_DEBUG TRUE
+        VS_SHADER_MODEL 5.0
+)
+source_group(shaders FILES ${SHADER_SRCS})
 
-#target_compile_definitions(kernels PUBLIC __CUDACC__)
- 
-# We need to explicitly state that we need all CUDA files in the 
-# particle library to be built with -dc as the member functions 
-# could be called by other libraries and executables
- 
-add_executable(launcher 
-    CUDA_first.cpp
-    CUDA_first.h
-    stdafx.cpp
-    stdafx.h
-    TransformColorInstBatch.h
-    VertexPositionColor.h
-    VertexPositionTexture.h
+#VS_SHADER_DISABLE_OPTIMIZATIONS
+#VS_SHADER_ENTRYPOINT
+#VS_SHADER_FLAGS
+#VS_SHADER_OBJECT_FILE_NAME
+#VS_SHADER_OUTPUT_HEADER_FILE
 
+set(CUDA_SRCS
     Agent.cu
     Agent.cuh
     AgentGroup.cu
@@ -29,8 +59,24 @@ add_executable(launcher
     CustomVectorOperations.cuh
     Map.cu
     Map.cuh
+)
+source_group(cuda FILES ${CUDA_SRCS})
 
-    Shader.fx
+set(CPP_SRCS
+    CUDA_first.cpp
+    CUDA_first.h
+    stdafx.cpp
+    stdafx.h
+    TransformColorInstBatch.h
+    VertexPositionColor.h
+    VertexPositionTexture.h
+)
+source_group(cpp FILES ${CPP_SRCS})
+
+add_executable(launcher 
+    ${CPP_SRCS}
+    ${CUDA_SRCS}
+    ${SHADER_SRCS}
 )
 
 set_target_properties( launcher
@@ -43,7 +89,8 @@ target_compile_features(launcher PUBLIC cxx_std_14)
 
 #set_property(TARGET particle_test 
 #             PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-#target_link_libraries(launcher PRIVATE kernels)
+
+target_include_directories(launcher PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(launcher PUBLIC DXUT_AUTOLIB)
 target_link_libraries(launcher 
     PRIVATE
@@ -57,15 +104,3 @@ if(WIN32)
     target_compile_definitions(launcher PRIVATE _UNICODE UNICODE)
     target_compile_definitions(launcher PRIVATE _WIN32_WINNT=0x0601)
 endif()
-
-add_custom_command(
-    TARGET launcher POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/Shader.fx
-            $<TARGET_FILE_DIR:launcher>/Shader.fx)
-
-add_custom_command(
-    TARGET launcher POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/D3D/$<IF:$<EQUAL:${CMAKE_SIZEOF_VOID_P},4>,x86,x64>/
-            $<TARGET_FILE_DIR:launcher>/)
