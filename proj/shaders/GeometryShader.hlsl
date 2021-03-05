@@ -10,11 +10,11 @@ void main(point PS_INPUT input[1], inout TriangleStream<PS_INPUT> triStream)
     psInput.Col = float4(1.0, 1.0, 1.0, 1.0);
     triStream.Append(psInput);
 
-    psInput.Pos = mul(pos + float4(-1.5, -1.5, 10.0, 0.0), ViewProjection);
+    psInput.Pos = mul(pos + float4(1.5, 0.0, 10.0, 0.0), ViewProjection);
     psInput.Col = input[0].Col;
     triStream.Append(psInput);
 
-    psInput.Pos = mul(pos + float4(1.5, 1.5, 10.0, 0.0), ViewProjection);
+    psInput.Pos = mul(pos + float4(-1.5, 0.0, 10.0, 0.0), ViewProjection);
     psInput.Col = input[0].Col;
     triStream.Append(psInput);
 
