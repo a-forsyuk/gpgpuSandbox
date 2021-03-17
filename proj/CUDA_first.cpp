@@ -8,15 +8,13 @@
 #include "DXUT.h"
 #include "DXUTcamera.h"
 
-//#include "VertexPositionTexture.h"
 #include "VertexPositionColor.h"
 #include "TransformColorInstBatch.h"
 #include "ConstantBuffer.h"
 
 #include "SDKmisc.h"
 
-#include "Map.cuh"
-#include "Agent.cuh"
+#include "AgentsKernel.cuh"
 
 #include <DirectXMath.h>
 
@@ -59,9 +57,11 @@ ID3D11GeometryShader* g_pGeometryShader = nullptr;
 ID3D11PixelShader* g_pPixelShader = nullptr;
 
 CModelViewerCamera g_Camera;
-AgentGroup* g_pAgentsGroup = nullptr;
 const UINT AgentsCount = 6144;
 VertexPositionColor* instanceData = nullptr;
+
+uint32_t widthNodesCount = 0;
+uint32_t heightNodesCount = 0;
 
 //--------------------------------------------------------------------------------------
 // Reject any D3D10 devices that aren't acceptable by returning false
@@ -138,8 +138,14 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	InitData.pSysMem = axisVertices;
 	V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pAxisVertexBuffer ) );
 
+	CUDASystems::GetMapNodesDimensions(&widthNodesCount, &heightNodesCount);
+
+	float worldWidth = 0;
+	float worldHeight = 0;
+	CUDASystems::GetMapDimensions(&worldWidth, &worldHeight);
+
 	///Map///
-	int verticesCount = (Map::HeightNodesCount() + 1) * 2 + (Map::WidthNodesCount() + 1) * 2;
+	int verticesCount = (heightNodesCount + 1) * 2 + (widthNodesCount + 1) * 2;
 	VertexPositionColor* mapLinesVertices = new VertexPositionColor[verticesCount];
 
 	for (int i=0;i<verticesCount;i++)
@@ -150,21 +156,21 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	int i = 0;
 
 	mapLinesVertices[i++].position = XMFLOAT3{ 0.0f, 0.0f, 0.0f };
-	mapLinesVertices[i++].position = XMFLOAT3{ Map::WorldWidth(), 0.0f, 0.0f };
+	mapLinesVertices[i++].position = XMFLOAT3{ worldWidth, 0.0f, 0.0f };
 
-	for (int heightCounter = 1; heightCounter<Map::HeightNodesCount() + 1; heightCounter++)
+	for (int heightCounter = 1; heightCounter<heightNodesCount + 1; heightCounter++)
 	{
-		mapLinesVertices[i++].position = XMFLOAT3{ 0.0f, Map::WorldHeight() / Map::HeightNodesCount() * heightCounter, 0.0f };
-		mapLinesVertices[i++].position = XMFLOAT3{ Map::WorldWidth() , Map::WorldHeight() / Map::HeightNodesCount() * heightCounter, 0.0f };
+		mapLinesVertices[i++].position = XMFLOAT3{ 0.0f, worldHeight / heightNodesCount * heightCounter, 0.0f };
+		mapLinesVertices[i++].position = XMFLOAT3{ worldWidth, worldHeight / heightNodesCount * heightCounter, 0.0f };
 	}
 
 	mapLinesVertices[i++].position = XMFLOAT3{ 0.0f, 0.0f, 0.0f };
-	mapLinesVertices[i++].position = XMFLOAT3{ 0.0f, Map::WorldHeight(), 0.0f };
+	mapLinesVertices[i++].position = XMFLOAT3{ 0.0f, worldHeight, 0.0f };
 
-	for (int widthCounter = 1;widthCounter<Map::WidthNodesCount()+1;widthCounter++)
+	for (int widthCounter = 1;widthCounter<widthNodesCount+1;widthCounter++)
 	{
-		mapLinesVertices[i++].position = XMFLOAT3{ Map::WorldWidth() / Map::WidthNodesCount() * widthCounter, 0.0f, 0.0f };
-		mapLinesVertices[i++].position = XMFLOAT3{ Map::WorldWidth() / Map::WidthNodesCount() * widthCounter, Map::WorldHeight(), 0.0f };
+		mapLinesVertices[i++].position = XMFLOAT3{ worldWidth / widthNodesCount * widthCounter, 0.0f, 0.0f };
+		mapLinesVertices[i++].position = XMFLOAT3{ worldWidth / widthNodesCount * widthCounter, worldHeight, 0.0f };
 	}
 
 	bd.ByteWidth = sizeof( VertexPositionColor ) * verticesCount;
@@ -173,11 +179,20 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	V_RETURN( pd3dDevice->CreateBuffer( &bd, &InitData, &g_pMapVertexBuffer ) );
 
 	// Initialize the view matrix
-	XMVECTORF32 Eye { Map::WorldWidth() / 2.0f, 0.0f, 100.0f };
-	XMVECTORF32 At { Map::WorldWidth() / 2.0f, Map::WorldHeight() / 2.0f, 0.0f };
+	XMVECTORF32 Eye { worldWidth / 2.0f, 0.0f, 100.0f };
+	XMVECTORF32 At { worldWidth / 2.0f, worldHeight / 2.0f, 0.0f };
 	g_Camera.SetViewParams( Eye, At );
 
-	instanceData = new VertexPositionColor[g_pAgentsGroup->AgentsCount()];
+	instanceData = new VertexPositionColor[AgentsCount];
+	memset(instanceData, 0, sizeof(VertexPositionColor) * AgentsCount);
+
+	float* agentColors = nullptr;
+	CUDASystems::MapColors(&agentColors);
+
+	for (uint32_t i = 0; i < AgentsCount; i++)
+	{
+		memcpy(&instanceData[i].color, agentColors + i * 4u, sizeof(float) * 4u);
+	}
 
 	// Fill in the subresource data.
 	D3D11_SUBRESOURCE_DATA InitData2;
@@ -253,21 +268,17 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 
 	pd3dImmediateContext->IASetVertexBuffers( 0, 1, &g_pMapVertexBuffer, &stride, &offset );
 
-	pd3dImmediateContext->Draw((Map::HeightNodesCount() + 1) * 2 + (Map::WidthNodesCount() + 1) * 2, 0);
+	pd3dImmediateContext->Draw((heightNodesCount + 1) * 2 + (widthNodesCount + 1) * 2, 0);
 
 	D3D11_MAPPED_SUBRESOURCE mappedSubresource;
 	ZeroMemory(&mappedSubresource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	HRESULT res = DXUTGetD3D11DeviceContext()->Map(g_pAgentsInstanceData, 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
-	Agent* agents = g_pAgentsGroup->Agents();
-	for (int i = 0; i < g_pAgentsGroup->AgentsCount(); i++)
+
+	float* agentPositions = nullptr;
+	CUDASystems::MapPositions(&agentPositions);
+	for (uint32_t i = 0; i < AgentsCount; i++)
 	{
-		Agent agent = agents[i];
-		instanceData[i].position.x = agent.Position().x;
-		instanceData[i].position.y = agent.Position().y;
-		instanceData[i].position.z = 0.0f;
-		instanceData[i].color.x = agent.color.x;
-		instanceData[i].color.y = agent.color.y;
-		instanceData[i].color.z = agent.color.z;
+		memcpy(&instanceData[i].position, agentPositions + i * 2u, sizeof(float)* 2u);
 	}
 	memcpy(mappedSubresource.pData, instanceData, sizeof(VertexPositionColor) * AgentsCount);
 	DXUTGetD3D11DeviceContext()->Unmap(g_pAgentsInstanceData, 0);
@@ -285,7 +296,6 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	pd3dImmediateContext->Draw(AgentsCount, 0);
 }
 
-
 //--------------------------------------------------------------------------------------
 // Release D3D10 resources created in OnD3D10ResizedSwapChain 
 //--------------------------------------------------------------------------------------
@@ -301,15 +311,11 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 {
 	SAFE_RELEASE( g_pAxisVertexBuffer );
 	SAFE_RELEASE( g_pMapVertexBuffer );
-	//SAFE_RELEASE( g_pVertexBuffer );
 	SAFE_RELEASE( g_pAgentsInstanceData);
-	//SAFE_RELEASE( g_pIndexBuffer );
 	SAFE_RELEASE( g_pVertexLayout );
 	SAFE_RELEASE( g_pVertexPositionColorLayout );
-	//SAFE_RELEASE( g_pTextureRV );
-	//SAFE_RELEASE( g_pEffect );
 	SAFE_RELEASE(g_pConstantBuffer)
-	cudaDeviceReset();
+	CUDASystems::Release();
 }
 
 
@@ -327,8 +333,7 @@ bool CALLBACK ModifyDeviceSettings( DXUTDeviceSettings* pDeviceSettings, void* p
 //--------------------------------------------------------------------------------------
 void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext )
 {
-	//instanceData = new TransformColorInstBatch[g_pAgentsGroup->AgentsCount()];
-	g_pAgentsGroup->Update(fElapsedTime);
+	CUDASystems::Update(fElapsedTime);
 	g_Camera.FrameMove(fElapsedTime);
 }
 
@@ -362,20 +367,7 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	int deviceCount = 0;
-	int deviceIndex = 0;
-	cudaError_t status = cudaGetDeviceCount(&deviceCount);
-	cudaDeviceProp deviceProp = cudaDeviceProp();
-	for (int i = 0; i < deviceCount; i++)
-	{
-		cudaGetDeviceProperties(&deviceProp, i);
-		if (deviceProp.major == 2)
-			deviceIndex = i;
-	}
-	cudaError_t error = cudaSetDevice(deviceIndex);
-
-	Map::Initialize(make_float2(0.0f, 0), make_float2(1600.0f, 1600.0f), 40, 40, 100);
-	g_pAgentsGroup = new AgentGroup(AgentsCount);
+	CUDASystems::Init(AgentsCount);
 
 	DXUTSetCallbackD3D11DeviceAcceptable(IsD3D11DeviceAcceptable);
 	DXUTSetCallbackD3D11DeviceCreated(OnD3D11CreateDevice);
@@ -393,7 +385,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	DXUTSetCursorSettings(true, true); // Show the cursor and clip it when in full screen
 	DXUTCreateWindow(L"Tutorial08");
 	DXUTCreateDevice(D3D_FEATURE_LEVEL_11_1, true, 1280, 768);
-	DXUTSetConstantFrameTime(true);
+	DXUTSetConstantFrameTime(false);
 	DXUTMainLoop(); // Enter into the DXUT render loop
 
 	return DXUTGetExitCode();

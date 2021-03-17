@@ -53,14 +53,28 @@ source_group(shaders FILES ${SHADER_SRCS})
 set(CUDA_SRCS
     Agent.cu
     Agent.cuh
+	
     AgentGroup.cu
     AgentGroup.cuh
+	
     AgentsKernel.cuh
+	CUDASystems.cu
+	
     CustomVectorOperations.cuh
+	
     Map.cu
     Map.cuh
 )
 source_group(cuda FILES ${CUDA_SRCS})
+set_source_files_properties(
+    ${CUDA_SRCS}
+    PROPERTIES
+        COMPILE_FLAGS "-rdc=true"
+)
+add_library(CUDASystems SHARED ${CUDA_SRCS})
+set_property(TARGET CUDASystems 
+             PROPERTY CUDA_SEPARABLE_COMPILATION ON
+             )
 
 set(CPP_SRCS
     CUDA_first.cpp
@@ -76,7 +90,7 @@ source_group(cpp FILES ${CPP_SRCS})
 
 add_executable(launcher 
     ${CPP_SRCS}
-    ${CUDA_SRCS}
+    #${CUDA_SRCS}
     ${SHADER_SRCS}
 )
 
@@ -86,15 +100,13 @@ set_target_properties( launcher
                        VS_DEBUGGER_COMMAND "$<TARGET_FILE:launcher>")
                        #VS_DEBUGGER_ENVIRONMENT "PATH=%PATH%;${CMAKE_PREFIX_PATH}/bin")
 
-target_compile_features(launcher PUBLIC cxx_std_14) 
-
-#set_property(TARGET particle_test 
-#             PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+#target_compile_features(launcher PUBLIC cxx_std_14) 
 
 target_include_directories(launcher PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(launcher PUBLIC DXUT_AUTOLIB)
 target_link_libraries(launcher 
     PRIVATE
+    CUDASystems
     DXUT
     DXUTOpt
     #Effects11

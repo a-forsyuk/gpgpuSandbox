@@ -256,7 +256,7 @@ __host__ void AgentGroup::Update( float elapsedTime )
 	status = cudaDeviceSynchronize();
 	//status = cudaFree(d_prevAgents);
 	//status = cudaFreeArray(previousAgentsArray);
-	size_t agentSize = sizeof(Agent);
+	//size_t agentSize = sizeof(Agent);
 	status = cudaMemcpyToArray(_previousAgentsArray, 0, 0, _agentPositionVelocity, sizeof(float4)*_agentsCount, cudaMemcpyDeviceToDevice);
 	
 	//status = cudaBindTextureToArray(g_previousAgentsPositions, _previousAgentsArray);
