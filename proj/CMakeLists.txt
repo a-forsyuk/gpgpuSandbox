@@ -77,14 +77,26 @@ set_property(TARGET CUDASystems
              )
 
 set(CPP_SRCS
+
     CUDA_first.cpp
     CUDA_first.h
+
     stdafx.cpp
     stdafx.h
-    TransformColorInstBatch.h
+
+    #TransformColorInstBatch.h
+
     VertexPositionColor.h
-    VertexPositionTexture.h
+	VertexPositionColor.cpp
+    #VertexPositionTexture.h
+
     ConstantBuffer.h
+
+    Render.h
+    Render.cpp
+	
+	Models.h
+    Models.cpp
 )
 source_group(cpp FILES ${CPP_SRCS})
 
