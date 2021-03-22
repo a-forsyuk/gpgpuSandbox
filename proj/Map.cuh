@@ -34,6 +34,5 @@ public:
 	static __host__ __device__ int GetNodeId(float x, float y);
 	static __host__ __device__ int GetNodeX(float x);
 	static __host__ __device__ int GetNodeY(float y);
-	static __host__ __device__ bool GetPassabilityAt(int x, int y);
 };
 

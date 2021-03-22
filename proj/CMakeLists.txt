@@ -84,11 +84,11 @@ set(CPP_SRCS
     stdafx.cpp
     stdafx.h
 
-    #TransformColorInstBatch.h
-
     VertexPositionColor.h
 	VertexPositionColor.cpp
-    #VertexPositionTexture.h
+
+    AgentVertex.h
+    AgentVertex.cpp
 
     ConstantBuffer.h
 
@@ -102,7 +102,6 @@ source_group(cpp FILES ${CPP_SRCS})
 
 add_executable(launcher 
     ${CPP_SRCS}
-    #${CUDA_SRCS}
     ${SHADER_SRCS}
 )
 

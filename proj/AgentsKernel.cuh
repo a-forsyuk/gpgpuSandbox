@@ -19,8 +19,8 @@ namespace CUDASystems
     CUDASystems_API void GetMapDimensions(float* width, float* height);
     CUDASystems_API void GetMapNodesDimensions(unsigned* width, unsigned* height);
 
-    CUDASystems_API void MapPositions(float** data);
-    CUDASystems_API void MapColors(float** data);
+    CUDASystems_API void MapPositions(float* data);
+    CUDASystems_API void MapColors(float* data);
 }
 
 #endif

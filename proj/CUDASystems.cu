@@ -34,7 +34,7 @@ namespace CUDASystems
 		}
 		cudaError_t error = cudaSetDevice(deviceIndex);
 
-		Map::Initialize(make_float2(0.0f, 0), make_float2(1600.0f, 1600.0f), 40, 40, 100);
+		Map::Initialize(make_float2(0.0f, 0), make_float2(2000.0f, 2000.0f), 40, 40, 100);
 		g_pAgentsGroup = new AgentGroup(agentsCount);
 
 		g_pAgentsPositions = new float[agentsCount * 2u];
@@ -84,14 +84,14 @@ namespace CUDASystems
 
 	}
 
-	CUDASystems_API void MapPositions(float** data)
+	CUDASystems_API void MapPositions(float* data)
 	{
-		*data = g_pAgentsPositions;
+		memcpy(data, g_pAgentsPositions, sizeof(float) * 2u * g_pAgentsCount);
 	}
 
-	CUDASystems_API void MapColors(float** data)
+	CUDASystems_API void MapColors(float* data)
 	{
-		*data = g_pAgentsColors;
+		memcpy(data, g_pAgentsColors, sizeof(float) * 4u * g_pAgentsCount);
 	}
 }
 

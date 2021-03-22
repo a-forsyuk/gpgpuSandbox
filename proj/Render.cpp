@@ -2,20 +2,22 @@
 #include "Models.h"
 
 #include "VertexPositionColor.h"
+#include "AgentVertex.h"
 #include "ConstantBuffer.h"
 
 #include "DXUT.h"
 
 namespace Render
 {
-    ID3D11InputLayout* g_pVertexLayout = nullptr;
-    ID3D11Buffer* g_pConstantBuffer = NULL;
-    CONSTANT_BUFFER cBuffer;
+    ID3D11InputLayout* vertexLayout = nullptr;
+	ID3D11InputLayout* agentVertexLayout = nullptr;
+    ID3D11Buffer* constantBuffer = NULL;
+    CONSTANT_BUFFER constantBufferData;
 
-    ID3D11VertexShader* g_pPlainVertexShader = nullptr;
-    ID3D11VertexShader* g_pWorldVewProjectionVs = nullptr;
-    ID3D11GeometryShader* g_pGeometryShader = nullptr;
-    ID3D11PixelShader* g_pPixelShader = nullptr;
+    ID3D11VertexShader* plainVertexShader = nullptr;
+    ID3D11VertexShader* worldVewProjectionVs = nullptr;
+    ID3D11GeometryShader* geometryShader = nullptr;
+    ID3D11PixelShader* pixelShader = nullptr;
 
 	namespace WorldVewProjectionVs
 	{
@@ -41,31 +43,31 @@ namespace Render
     {
         HRESULT hr = S_OK;
 
-		V_RETURN(pd3dDevice->CreateVertexShader(PlainVs::g_main, sizeof(PlainVs::g_main), nullptr, &g_pPlainVertexShader));
-		V_RETURN(pd3dDevice->CreateVertexShader(WorldVewProjectionVs::g_main, sizeof(WorldVewProjectionVs::g_main), nullptr, &g_pWorldVewProjectionVs));
-		V_RETURN(pd3dDevice->CreateGeometryShader(GeometryShader::g_main, sizeof(GeometryShader::g_main), nullptr, &g_pGeometryShader));
-		V_RETURN(pd3dDevice->CreatePixelShader(PixelShader::g_main, sizeof(PixelShader::g_main), nullptr, &g_pPixelShader));
+		V_RETURN(pd3dDevice->CreateVertexShader(PlainVs::g_main, sizeof(PlainVs::g_main), nullptr, &plainVertexShader));
+		V_RETURN(pd3dDevice->CreateVertexShader(WorldVewProjectionVs::g_main, sizeof(WorldVewProjectionVs::g_main), nullptr, &worldVewProjectionVs));
+		V_RETURN(pd3dDevice->CreateGeometryShader(GeometryShader::g_main, sizeof(GeometryShader::g_main), nullptr, &geometryShader));
+		V_RETURN(pd3dDevice->CreatePixelShader(PixelShader::g_main, sizeof(PixelShader::g_main), nullptr, &pixelShader));
 
 		V_RETURN(pd3dDevice->CreateInputLayout(
-			VertexPositionColor::VertexDescription,
-			VertexPositionColor::VertexDescriptionElementsCount,
-			PlainVs::g_main,
-			sizeof(PlainVs::g_main),
-			&g_pVertexLayout)
+			VertexPositionColor::VertexDescription.data(),
+			VertexPositionColor::VertexDescription.size(),
+			WorldVewProjectionVs::g_main,
+			(uint32_t)sizeof(WorldVewProjectionVs::g_main),
+			&vertexLayout)
 		);
 
-		//V_RETURN(pd3dDevice->CreateInputLayout(
-		//	VertexPositionColor::VertexDescription,
-		//	VertexPositionColor::VertexDescriptionElementsCount,
-		//	WorldVewProjectionVs::g_main,
-		//	sizeof(WorldVewProjectionVs::g_main),
-		//	&g_pVertexPositionColorLayout)
-		//);
+		V_RETURN(pd3dDevice->CreateInputLayout(
+			AgentVertex::Description.data(),
+			AgentVertex::Description.size(),
+			PlainVs::g_main,
+			(uint32_t)sizeof(PlainVs::g_main),
+			&agentVertexLayout)
+		);
 
 		// Fill in the subresource data.
 		D3D11_SUBRESOURCE_DATA InitData2;
 		ZeroMemory(&InitData2, sizeof(D3D11_SUBRESOURCE_DATA));
-		InitData2.pSysMem = &cBuffer;
+		InitData2.pSysMem = &constantBufferData;
 		InitData2.SysMemPitch = 0;
 		InitData2.SysMemSlicePitch = 0;
 
@@ -76,26 +78,26 @@ namespace Render
 		cbDesc.ByteWidth = sizeof(CONSTANT_BUFFER);
 
 		// Create the buffer.
-		V_RETURN(pd3dDevice->CreateBuffer(&cbDesc, &InitData2, &g_pConstantBuffer));
+		V_RETURN(pd3dDevice->CreateBuffer(&cbDesc, &InitData2, &constantBuffer));
 		
-		pd3dContext->PSSetShader(g_pPixelShader, nullptr, 0);
+		pd3dContext->PSSetShader(pixelShader, nullptr, 0);
 
-		pd3dContext->GSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-		pd3dContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+		pd3dContext->GSSetConstantBuffers(0, 1, &constantBuffer);
+		pd3dContext->VSSetConstantBuffers(0, 1, &constantBuffer);
 
 		return hr;
     }
 
     void Release()
     {
-		SAFE_RELEASE(g_pVertexLayout);
-		SAFE_RELEASE(g_pConstantBuffer)
+		SAFE_RELEASE(vertexLayout);
+		SAFE_RELEASE(constantBuffer)
     }
 
 	void SetViewProjection(CXMMATRIX view, FXMMATRIX projection)
 	{
 		XMStoreFloat4x4(
-			&cBuffer.viewProjection,
+			&constantBufferData.viewProjection,
 			XMMatrixMultiply(
 				XMMatrixIdentity(),
 				XMMatrixMultiply(
@@ -106,10 +108,9 @@ namespace Render
 
 	void Clear(ID3D11DeviceContext* pd3dImmediateContext)
 	{
-		pd3dImmediateContext->IASetInputLayout(g_pVertexLayout);
-		pd3dImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cBuffer, 0, 0);
+		pd3dImmediateContext->UpdateSubresource(constantBuffer, 0, nullptr, &constantBufferData, 0, 0);
 
-		float ClearColor[4] = { 0.1f, 0.1f, 0.1f, 0.1f }; // red, green, blue, alpha
+		float ClearColor[4] { 0.1f, 0.1f, 0.1f, 0.1f }; // red, green, blue, alpha
 		ID3D11RenderTargetView* pRTV = DXUTGetD3D11RenderTargetView();
 		pd3dImmediateContext->ClearRenderTargetView(pRTV, ClearColor);
 
@@ -119,14 +120,18 @@ namespace Render
 
 	void RenderTerrain(ID3D11DeviceContext* pd3dImmediateContext)
 	{
-		UINT stride = sizeof(VertexPositionColor);
-		UINT offset = 0;
+		uint32_t strides[]{ sizeof(XMFLOAT3), sizeof(XMFLOAT4) };
+		uint32_t offsets[]{ 0u, 0u };
+		ID3D11Buffer* buffers[]{ Models::Lines::gPositions, Models::Lines::gColors };
+
+		pd3dImmediateContext->IASetInputLayout(vertexLayout);
+
 		pd3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
-		pd3dImmediateContext->VSSetShader(g_pWorldVewProjectionVs, nullptr, 0);
+		pd3dImmediateContext->VSSetShader(worldVewProjectionVs, nullptr, 0);
 		pd3dImmediateContext->GSSetShader(nullptr, nullptr, 0);
 
-		pd3dImmediateContext->IASetVertexBuffers(0, 1, &Models::g_pMapVertexBuffer, &stride, &offset);
+		pd3dImmediateContext->IASetVertexBuffers(0, 2, buffers, strides, offsets);
 
 		pd3dImmediateContext->Draw(Models::terrainVerticesCount, 0);
 
@@ -134,13 +139,18 @@ namespace Render
 
     void RenderAgents(ID3D11DeviceContext* pd3dImmediateContext)
     {
-		UINT stride = sizeof(VertexPositionColor);
-		UINT offset = 0;
-		pd3dImmediateContext->IASetVertexBuffers(0, 1, &Models::g_pAgentsInstanceData, &stride, &offset);
+		uint32_t strides[]{ sizeof(XMFLOAT2), sizeof(XMFLOAT4) };
+		uint32_t offsets[]{ 0u, 0u };
+		ID3D11Buffer* buffers[]{ Models::Agents::gPositions, Models::Agents::gColors };
+
+		pd3dImmediateContext->IASetInputLayout(agentVertexLayout);
+
 		pd3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 
-		pd3dImmediateContext->VSSetShader(g_pPlainVertexShader, nullptr, 0);
-		pd3dImmediateContext->GSSetShader(g_pGeometryShader, nullptr, 0);
+		pd3dImmediateContext->IASetVertexBuffers(0, 2, buffers, strides, offsets);
+
+		pd3dImmediateContext->VSSetShader(plainVertexShader, nullptr, 0);
+		pd3dImmediateContext->GSSetShader(geometryShader, nullptr, 0);
 
 		pd3dImmediateContext->Draw(Models::agentsCount, 0);
     }

@@ -1,16 +1,9 @@
 #pragma once
 
 #include <d3d11.h>
-#include <DirectXMath.h>
+#include <array>
 
-using namespace DirectX;
-
-struct VertexPositionColor
+namespace VertexPositionColor
 {
-public:
-	XMFLOAT3 position;
-	XMFLOAT4 color;
-
-	static const D3D11_INPUT_ELEMENT_DESC VertexDescription[];
-	static const int VertexDescriptionElementsCount;
+    extern const std::array< D3D11_INPUT_ELEMENT_DESC, 2u> VertexDescription;
 };

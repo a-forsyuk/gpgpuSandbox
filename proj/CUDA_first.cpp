@@ -10,9 +10,6 @@
 
 #include "Render.h"
 #include "Models.h"
-#include "VertexPositionColor.h"
-#include "TransformColorInstBatch.h"
-
 
 #include "SDKmisc.h"
 
@@ -23,12 +20,13 @@
 using namespace DirectX;
 
 CModelViewerCamera g_Camera;
-const UINT AgentsCount = 6144;
+constexpr uint32_t AgentsCount() { return 10000u; };
+
+constexpr size_t SizeOfPositions() { return AgentsCount() * sizeof(XMFLOAT2); }
+XMFLOAT2 positions[AgentsCount()];
 
 uint32_t widthNodesCount = 0;
 uint32_t heightNodesCount = 0;
-
-VertexPositionColor* instanceData = nullptr;
 
 //--------------------------------------------------------------------------------------
 // Reject any D3D10 devices that aren't acceptable by returning false
@@ -40,6 +38,7 @@ bool CALLBACK IsD3D11DeviceAcceptable(_In_ const CD3D11EnumAdapterInfo* AdapterI
 	return DeviceInfo->DeviceType == D3D_DRIVER_TYPE_HARDWARE && bWindowed;
 }
 
+constexpr size_t SizeOfColors() { return AgentsCount() * sizeof(XMFLOAT4); }
 //--------------------------------------------------------------------------------------
 // Create any D3D10 resources that aren't dependant on the back buffer
 //--------------------------------------------------------------------------------------
@@ -48,7 +47,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 {
 	HRESULT hr = S_OK;
 
-	Render::Init(pd3dDevice, DXUTGetD3D11DeviceContext(), AgentsCount);
+	Render::Init(pd3dDevice, DXUTGetD3D11DeviceContext(), AgentsCount());
 
 	CUDASystems::GetMapNodesDimensions(&widthNodesCount, &heightNodesCount);
 
@@ -60,18 +59,14 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	XMVECTORF32 At{ worldWidth / 2.0f, worldHeight / 2.0f, 0.0f };
 	g_Camera.SetViewParams(Eye, At);
 
-	instanceData = new VertexPositionColor[AgentsCount];
-	memset(instanceData, 0, sizeof(VertexPositionColor) * AgentsCount);
+	memset(positions, 0, SizeOfPositions());
+	XMFLOAT4 colors[AgentsCount()];
+	memset(colors, 0, SizeOfColors());
 
-	float* agentColors = nullptr;
-	CUDASystems::MapColors(&agentColors);
+	CUDASystems::MapColors((float*)colors);
 
-	for (uint32_t i = 0; i < AgentsCount; i++)
-	{
-		memcpy(&instanceData[i].color, agentColors + i * 4u, sizeof(float) * 4u);
-	}
-
-	Models::Init(pd3dDevice, AgentsCount, heightNodesCount, widthNodesCount, worldWidth, worldHeight);
+	V_RETURN(Models::InitTerrain(pd3dDevice, heightNodesCount, widthNodesCount, worldWidth, worldHeight));
+	V_RETURN(Models::InitAgents(pd3dDevice, AgentsCount(), colors, SizeOfColors(), SizeOfPositions()));
 
 	return S_OK;
 }
@@ -99,14 +94,9 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain(_In_ ID3D11Device* pd3dDevice, _In_ IDX
 //--------------------------------------------------------------------------------------
 void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, double fTime, float fElapsedTime, void* pUserContext)
 {
-	float* agentPositions = nullptr;
-	CUDASystems::MapPositions(&agentPositions);
-	for (uint32_t i = 0; i < AgentsCount; i++)
-	{
-		memcpy(&instanceData[i].position, agentPositions + i * 2u, sizeof(float) * 2u);
-	}
+	CUDASystems::MapPositions((float*)positions);
 
-	Models::UpdateAgents(pd3dImmediateContext, instanceData);
+	Models::UpdateAgents(pd3dImmediateContext, positions, SizeOfPositions());
 
 	Render::Clear(pd3dImmediateContext);
 	Render::RenderTerrain(pd3dImmediateContext);
@@ -179,7 +169,7 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	CUDASystems::Init(AgentsCount);
+	CUDASystems::Init(AgentsCount());
 
 	DXUTSetCallbackD3D11DeviceAcceptable(IsD3D11DeviceAcceptable);
 	DXUTSetCallbackD3D11DeviceCreated(OnD3D11CreateDevice);

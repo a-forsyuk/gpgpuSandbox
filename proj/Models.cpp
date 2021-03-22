@@ -4,10 +4,22 @@
 
 #include "DXUT.h"
 
+#include <DirectXMath.h>
+
+using namespace DirectX;
+
 namespace Models
 {
-    ID3D11Buffer* g_pMapVertexBuffer = nullptr;
-    ID3D11Buffer* g_pAgentsInstanceData = nullptr;
+	namespace Lines
+	{
+		ID3D11Buffer* gPositions = nullptr;
+		ID3D11Buffer* gColors = nullptr;
+	}
+	namespace Agents
+	{
+		ID3D11Buffer* gPositions = nullptr;
+		ID3D11Buffer* gColors = nullptr;
+	}
 
 	uint32_t agentsCount = 0u;
 	uint32_t terrainVerticesCount = 0u;
@@ -33,68 +45,51 @@ namespace Models
 	}
 
 	void GenerateTerrain(
-		uint32_t heightNodesCount, 
-		uint32_t widthNodesCount, 
-		float worldWidth, 
+		uint32_t heightNodesCount,
+		uint32_t widthNodesCount,
+		float worldWidth,
 		float worldHeight,
-		VertexPositionColor** data,
+		DirectX::XMFLOAT3** pPositions,
 		uint32_t* pVerticesCount
 	)
 	{
 		int verticesCount = (heightNodesCount + 1) * 2 + (widthNodesCount + 1) * 2;
 		*pVerticesCount = verticesCount;
-		VertexPositionColor* mapLinesVertices = new VertexPositionColor[verticesCount];
+		DirectX::XMFLOAT3* positions = new DirectX::XMFLOAT3[verticesCount];
 
-		for (int i = 0; i < verticesCount; i++)
+		uint32_t i = 0;
+
+		positions[i++] = XMFLOAT3{ 0.0f, 0.0f, 0.0f };
+		positions[i++] = XMFLOAT3{ worldWidth, 0.0f, 0.0f };
+
+		for (uint32_t heightCounter = 1; heightCounter < heightNodesCount + 1; heightCounter++)
 		{
-			mapLinesVertices[i].color = XMFLOAT4{ 0.2f,0.2f,0.2f,0.1f };
+			positions[i++] = XMFLOAT3{ 0.0f, worldHeight / heightNodesCount * heightCounter, 0.0f };
+			positions[i++] = XMFLOAT3{ worldWidth, worldHeight / heightNodesCount * heightCounter, 0.0f };
 		}
 
-		int i = 0;
+		positions[i++] = XMFLOAT3{ 0.0f, 0.0f, 0.0f };
+		positions[i++] = XMFLOAT3{ 0.0f, worldHeight, 0.0f };
 
-		mapLinesVertices[i++].position = XMFLOAT3{ 0.0f, 0.0f, 0.0f };
-		mapLinesVertices[i++].position = XMFLOAT3{ worldWidth, 0.0f, 0.0f };
-
-		for (int heightCounter = 1; heightCounter < heightNodesCount + 1; heightCounter++)
+		for (uint32_t widthCounter = 1; widthCounter < widthNodesCount + 1; widthCounter++)
 		{
-			mapLinesVertices[i++].position = XMFLOAT3{ 0.0f, worldHeight / heightNodesCount * heightCounter, 0.0f };
-			mapLinesVertices[i++].position = XMFLOAT3{ worldWidth, worldHeight / heightNodesCount * heightCounter, 0.0f };
+			positions[i++] = XMFLOAT3{ worldWidth / widthNodesCount * widthCounter, 0.0f, 0.0f };
+			positions[i++] = XMFLOAT3{ worldWidth / widthNodesCount * widthCounter, worldHeight, 0.0f };
 		}
 
-		mapLinesVertices[i++].position = XMFLOAT3{ 0.0f, 0.0f, 0.0f };
-		mapLinesVertices[i++].position = XMFLOAT3{ 0.0f, worldHeight, 0.0f };
-
-		for (int widthCounter = 1; widthCounter < widthNodesCount + 1; widthCounter++)
-		{
-			mapLinesVertices[i++].position = XMFLOAT3{ worldWidth / widthNodesCount * widthCounter, 0.0f, 0.0f };
-			mapLinesVertices[i++].position = XMFLOAT3{ worldWidth / widthNodesCount * widthCounter, worldHeight, 0.0f };
-		}
-
-		*data = mapLinesVertices;
+		*pPositions = positions;
 	}
 
-    HRESULT Init(
-		ID3D11Device* pd3dDevice, 
-		uint32_t pAgentsCount,
+	HRESULT InitTerrain(
+		ID3D11Device* pd3dDevice,
 		uint32_t heightNodesCount,
 		uint32_t widthNodesCount,
 		float worldWidth,
 		float worldHeight)
-    {
-        HRESULT hr = S_OK;
+	{
+		HRESULT hr = S_OK;
 
-		agentsCount = pAgentsCount;
-
-		D3D11_BUFFER_DESC bufferDesc;
-		bufferDesc.ByteWidth = agentsCount * sizeof(VertexPositionColor);
-		bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		bufferDesc.MiscFlags = 0;
-
-		V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, NULL, &g_pAgentsInstanceData));
-
-		VertexPositionColor* terrainGeometry = nullptr;
+		XMFLOAT3* terrainGeometry = nullptr;
 		GenerateTerrain(
 			heightNodesCount,
 			widthNodesCount,
@@ -103,32 +98,90 @@ namespace Models
 			&terrainGeometry,
 			&terrainVerticesCount);
 
-		bufferDesc.Usage = D3D11_USAGE_DEFAULT;
-		bufferDesc.CPUAccessFlags = 0;
-		bufferDesc.ByteWidth = sizeof(VertexPositionColor) * terrainVerticesCount;
-
+		D3D11_BUFFER_DESC bufferDesc;
 		D3D11_SUBRESOURCE_DATA InitData;
-		InitData.pSysMem = terrainGeometry;
-		V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, &InitData, &g_pMapVertexBuffer));
 
-		delete terrainGeometry;
+		{
+			bufferDesc.ByteWidth = terrainVerticesCount * sizeof(XMFLOAT3);
+			bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+			bufferDesc.CPUAccessFlags = 0;
+			bufferDesc.MiscFlags = 0;
+			InitData.pSysMem = terrainGeometry;
+			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, &InitData, &Lines::gPositions));
+		}
+
+		{
+			XMFLOAT4* colors = new XMFLOAT4[terrainVerticesCount];
+			//memset(colors, 0.2f, sizeof(terrainVerticesCount) * agentsCount);
+			std::fill(colors, colors + terrainVerticesCount, XMFLOAT4{ 0.2f, 0.2f, 0.2f, 0.1f });
+			//for (int i = 0; i < terrainVerticesCount; i++)
+			//{
+			//	colors[i] = XMFLOAT4{ 0.2f, 0.2f, 0.2f, 0.1f };
+			//}
+			bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+			bufferDesc.CPUAccessFlags = 0;
+			bufferDesc.ByteWidth = sizeof(XMFLOAT4) * terrainVerticesCount;
+			InitData.pSysMem = colors;
+			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, &InitData, &Lines::gColors));
+		}
+
+		delete[] terrainGeometry;
 
 		return hr;
-    }
+	}
 
-    void Release()
-    {
-		SAFE_RELEASE(g_pMapVertexBuffer);
-		SAFE_RELEASE(g_pAgentsInstanceData);
-    }
+	HRESULT InitAgents(
+		ID3D11Device* pd3dDevice, 
+		uint32_t pAgentsCount, 
+		XMFLOAT4* colors,
+		size_t sizeOfColors,
+		size_t sizeOfPositions
+	)
+	{
+		HRESULT hr = S_OK;
 
-	void UpdateAgents(ID3D11DeviceContext* pd3dContext, VertexPositionColor* agentsData)
+		agentsCount = pAgentsCount;
+
+		D3D11_BUFFER_DESC bufferDesc;
+
+		{
+			bufferDesc.ByteWidth = sizeOfPositions;
+			bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+			bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			bufferDesc.MiscFlags = 0;
+			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, nullptr, &Agents::gPositions));
+		}
+
+		{
+			bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+			bufferDesc.CPUAccessFlags = 0;
+			bufferDesc.ByteWidth = sizeOfColors;
+			D3D11_SUBRESOURCE_DATA InitData;
+			InitData.pSysMem = colors;
+			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, &InitData, &Agents::gColors));
+		}
+
+		return hr;
+	}
+
+	void Release()
+	{
+		SAFE_RELEASE(Lines::gColors);
+		SAFE_RELEASE(Lines::gPositions);
+
+		SAFE_RELEASE(Agents::gColors);
+		SAFE_RELEASE(Agents::gPositions);
+	}
+
+	void UpdateAgents(ID3D11DeviceContext* pd3dContext, XMFLOAT2* positions, size_t sizeOfPositions)
 	{
 		D3D11_MAPPED_SUBRESOURCE mappedSubresource;
 		ZeroMemory(&mappedSubresource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 
-		HRESULT res = pd3dContext->Map(g_pAgentsInstanceData, 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
-		memcpy(mappedSubresource.pData, agentsData, sizeof(VertexPositionColor) * agentsCount);
-		pd3dContext->Unmap(g_pAgentsInstanceData, 0);
+		HRESULT res = pd3dContext->Map(Agents::gPositions, 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
+		memcpy(mappedSubresource.pData, positions, sizeOfPositions);
+		pd3dContext->Unmap(Agents::gPositions, 0);
 	}
 }
