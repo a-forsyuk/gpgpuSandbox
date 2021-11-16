@@ -17,7 +17,8 @@ namespace Models
 	}
 	namespace Agents
 	{
-		ID3D11Buffer* gPositions = nullptr;
+		DoubleBuffer<ID3D11Buffer> gPositions;
+
 		ID3D11Buffer* gColors = nullptr;
 	}
 
@@ -136,6 +137,7 @@ namespace Models
 		uint32_t pAgentsCount, 
 		XMFLOAT4* colors,
 		size_t sizeOfColors,
+		XMFLOAT2* positions,
 		size_t sizeOfPositions
 	)
 	{
@@ -144,22 +146,41 @@ namespace Models
 		agentsCount = pAgentsCount;
 
 		D3D11_BUFFER_DESC bufferDesc;
+		D3D11_SUBRESOURCE_DATA InitData;
 
 		{
+			ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
+			ZeroMemory(&InitData, sizeof(D3D11_SUBRESOURCE_DATA));
+
 			bufferDesc.ByteWidth = sizeOfPositions;
-			bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-			bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-			bufferDesc.MiscFlags = 0;
-			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, nullptr, &Agents::gPositions));
+			bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+			bufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_VERTEX_BUFFER;
+			//bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			//bufferDesc.StructureByteStride = sizeof(float) * 2u;
+			//bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+
+			InitData.pSysMem = positions;
+			
+			ID3D11Buffer* positionsBuffer0 = nullptr;
+			ID3D11Buffer* positionsBuffer1 = nullptr;
+
+			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, &InitData, &positionsBuffer0));
+			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, &InitData, &positionsBuffer1));
+
+			Agents::gPositions.Init(positionsBuffer0, positionsBuffer1);
 		}
 
 		{
+			ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
+			ZeroMemory(&InitData, sizeof(D3D11_SUBRESOURCE_DATA));
+
 			bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 			bufferDesc.CPUAccessFlags = 0;
 			bufferDesc.ByteWidth = sizeOfColors;
-			D3D11_SUBRESOURCE_DATA InitData;
+
 			InitData.pSysMem = colors;
+
 			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, &InitData, &Agents::gColors));
 		}
 
@@ -172,7 +193,7 @@ namespace Models
 		SAFE_RELEASE(Lines::gPositions);
 
 		SAFE_RELEASE(Agents::gColors);
-		SAFE_RELEASE(Agents::gPositions);
+		Agents::gPositions.Release();;
 	}
 
 	void UpdateAgents(ID3D11DeviceContext* pd3dContext, XMFLOAT2* positions, size_t sizeOfPositions)
@@ -180,8 +201,12 @@ namespace Models
 		D3D11_MAPPED_SUBRESOURCE mappedSubresource;
 		ZeroMemory(&mappedSubresource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 
-		HRESULT res = pd3dContext->Map(Agents::gPositions, 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
+		HRESULT res = pd3dContext->Map(Agents::gPositions.GetFront(), 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
 		memcpy(mappedSubresource.pData, positions, sizeOfPositions);
-		pd3dContext->Unmap(Agents::gPositions, 0);
+		pd3dContext->Unmap(Agents::gPositions.GetFront(), 0);
+
+		res = pd3dContext->Map(Agents::gPositions.GetBack(), 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
+		memcpy(mappedSubresource.pData, positions, sizeOfPositions);
+		pd3dContext->Unmap(Agents::gPositions.GetBack(), 0);
 	}
 }

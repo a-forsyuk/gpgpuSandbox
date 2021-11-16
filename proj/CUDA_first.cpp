@@ -10,6 +10,7 @@
 
 #include "Render.h"
 #include "Models.h"
+#include "DirectComputeSystems.h"
 
 #include "SDKmisc.h"
 
@@ -47,7 +48,11 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 {
 	HRESULT hr = S_OK;
 
-	Render::Init(pd3dDevice, DXUTGetD3D11DeviceContext(), AgentsCount());
+	CUDASystems::Init(AgentsCount());
+
+	ID3D11DeviceContext* deviceContext = DXUTGetD3D11DeviceContext();
+
+	Render::Init(pd3dDevice, deviceContext, AgentsCount());
 
 	CUDASystems::GetMapNodesDimensions(&widthNodesCount, &heightNodesCount);
 
@@ -65,8 +70,21 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 
 	CUDASystems::MapColors((float*)colors);
 
+	CUDASystems::MapPositions((float*)positions);
+	XMFLOAT2 targets[AgentsCount()];
+	CUDASystems::MapTargets((float*)targets);
+
 	V_RETURN(Models::InitTerrain(pd3dDevice, heightNodesCount, widthNodesCount, worldWidth, worldHeight));
-	V_RETURN(Models::InitAgents(pd3dDevice, AgentsCount(), colors, SizeOfColors(), SizeOfPositions()));
+	V_RETURN(Models::InitAgents(pd3dDevice, AgentsCount(), colors, SizeOfColors(), positions, SizeOfPositions()));
+	V_RETURN(DirectComputeSystems::Init(
+		pd3dDevice, 
+		deviceContext, 
+		Models::Agents::gPositions.GetFront(),
+		Models::Agents::gPositions.GetBack(),
+		targets,
+		AgentsCount()));
+
+	//Models::UpdateAgents(deviceContext, positions, SizeOfPositions());
 
 	return S_OK;
 }
@@ -94,10 +112,6 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain(_In_ ID3D11Device* pd3dDevice, _In_ IDX
 //--------------------------------------------------------------------------------------
 void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, double fTime, float fElapsedTime, void* pUserContext)
 {
-	CUDASystems::MapPositions((float*)positions);
-
-	Models::UpdateAgents(pd3dImmediateContext, positions, SizeOfPositions());
-
 	Render::Clear(pd3dImmediateContext);
 	Render::RenderTerrain(pd3dImmediateContext);
 	Render::RenderAgents(pd3dImmediateContext);
@@ -116,7 +130,7 @@ void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
 //--------------------------------------------------------------------------------------
 void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 {
-	CUDASystems::Release();
+	//CUDASystems::Release();
 }
 
 
@@ -134,8 +148,9 @@ bool CALLBACK ModifyDeviceSettings( DXUTDeviceSettings* pDeviceSettings, void* p
 //--------------------------------------------------------------------------------------
 void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext )
 {
-	CUDASystems::Update(fElapsedTime);
+	//CUDASystems::Update(fElapsedTime);
 	g_Camera.FrameMove(fElapsedTime);
+	DirectComputeSystems::Update(DXUTGetD3D11DeviceContext(), AgentsCount(), fElapsedTime);
 	Render::SetViewProjection(g_Camera.GetViewMatrix(), g_Camera.GetProjMatrix());
 }
 
@@ -169,8 +184,6 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	CUDASystems::Init(AgentsCount());
-
 	DXUTSetCallbackD3D11DeviceAcceptable(IsD3D11DeviceAcceptable);
 	DXUTSetCallbackD3D11DeviceCreated(OnD3D11CreateDevice);
 	DXUTSetCallbackD3D11SwapChainResized(OnD3D11ResizedSwapChain);

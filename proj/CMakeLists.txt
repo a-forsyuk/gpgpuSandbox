@@ -10,6 +10,8 @@ SET (SHADER_SRCS
     shaders/PixelShader.hlsl
     shaders/PlainVs.hlsl
     shaders/WorldVewProjectionVs.hlsl
+
+    shaders/SteeringCS.hlsl
 )
 set_source_files_properties(
     shaders/PlainVs.hlsl 
@@ -34,6 +36,12 @@ set_source_files_properties(
     PROPERTIES
         VS_SHADER_TYPE Vertex
         VS_SHADER_OUTPUT_HEADER_FILE ${CMAKE_CURRENT_BINARY_DIR}/WorldVewProjectionVs.h
+    )
+set_source_files_properties(
+    shaders/SteeringCS.hlsl
+    PROPERTIES
+        VS_SHADER_TYPE Compute
+        VS_SHADER_OUTPUT_HEADER_FILE ${CMAKE_CURRENT_BINARY_DIR}/SteeringCS.h
     )
 set_source_files_properties(
     ${SHADER_SRCS}
@@ -97,6 +105,11 @@ set(CPP_SRCS
 	
 	Models.h
     Models.cpp
+
+    DirectComputeSystems.h
+    DirectComputeSystems.cpp
+
+    DoubleBuffer.h
 )
 source_group(cpp FILES ${CPP_SRCS})
 

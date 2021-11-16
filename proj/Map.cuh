@@ -1,5 +1,5 @@
 #pragma once
-#include <host_defines.h>
+#include <cuda_runtime.h>
 #include "AgentGroup.cuh"
 
 using namespace std;

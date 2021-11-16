@@ -118,7 +118,7 @@ namespace Render
 		pd3dImmediateContext->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0, 0);
 	}
 
-	void RenderTerrain(ID3D11DeviceContext* pd3dImmediateContext)
+	void BindTerrain(ID3D11DeviceContext* pd3dImmediateContext)
 	{
 		uint32_t strides[]{ sizeof(XMFLOAT3), sizeof(XMFLOAT4) };
 		uint32_t offsets[]{ 0u, 0u };
@@ -132,16 +132,30 @@ namespace Render
 		pd3dImmediateContext->GSSetShader(nullptr, nullptr, 0);
 
 		pd3dImmediateContext->IASetVertexBuffers(0, 2, buffers, strides, offsets);
+	}
+
+	void UnbindTerrain(ID3D11DeviceContext* pd3dImmediateContext)
+	{
+		uint32_t strides[]{ 0u, 0u };
+		uint32_t offsets[]{ 0u, 0u };
+		ID3D11Buffer* buffers[]{ nullptr, nullptr };
+		pd3dImmediateContext->IASetVertexBuffers(0, 2, buffers, strides, offsets);
+	}
+
+	void RenderTerrain(ID3D11DeviceContext* pd3dImmediateContext)
+	{
+		BindTerrain(pd3dImmediateContext);
 
 		pd3dImmediateContext->Draw(Models::terrainVerticesCount, 0);
 
+		UnbindTerrain(pd3dImmediateContext);
 	}
 
     void RenderAgents(ID3D11DeviceContext* pd3dImmediateContext)
     {
 		uint32_t strides[]{ sizeof(XMFLOAT2), sizeof(XMFLOAT4) };
 		uint32_t offsets[]{ 0u, 0u };
-		ID3D11Buffer* buffers[]{ Models::Agents::gPositions, Models::Agents::gColors };
+		ID3D11Buffer* buffers[]{ Models::Agents::gPositions.GetFront(), Models::Agents::gColors };
 
 		pd3dImmediateContext->IASetInputLayout(agentVertexLayout);
 
@@ -153,5 +167,9 @@ namespace Render
 		pd3dImmediateContext->GSSetShader(geometryShader, nullptr, 0);
 
 		pd3dImmediateContext->Draw(Models::agentsCount, 0);
+
+		UnbindTerrain(pd3dImmediateContext);
+
+		Models::Agents::gPositions.Swap();
     }
 }

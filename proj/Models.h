@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DoubleBuffer.h"
+
 #include <DirectXMath.h>
 #include <d3d11.h>
 #include <stdint.h>
@@ -13,7 +15,7 @@ namespace Models
 	}
 	namespace Agents
 	{
-		extern ID3D11Buffer* gPositions;
+		extern DoubleBuffer<ID3D11Buffer> gPositions;
 		extern ID3D11Buffer* gColors;
 	}
 
@@ -26,7 +28,7 @@ namespace Models
 	HRESULT InitAgents(ID3D11Device* pd3dDevice, 
 		uint32_t pAgentsCount, 
 		DirectX::XMFLOAT4* colors, size_t sizeOfColors, 
-		size_t sizeOfPositions);
+		DirectX::XMFLOAT2* positions, size_t sizeOfPositions);
     void Release();
 
 	void UpdateAgents(ID3D11DeviceContext* pd3dContext, DirectX::XMFLOAT2* positions, size_t sizeOfPositions);
