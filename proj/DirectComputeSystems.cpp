@@ -44,21 +44,23 @@ namespace DirectComputeSystems
         );
 
         D3D11_SHADER_RESOURCE_VIEW_DESC positionsSRVDesc;
+        ZeroMemory(&positionsSRVDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+        positionsSRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+        positionsSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
+        //positionsSRVDesc.Buffer.ElementOffset = 0;
+        //positionsSRVDesc.Buffer.ElementWidth = sizeof(float) * 2u;
+        positionsSRVDesc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
+        positionsSRVDesc.BufferEx.FirstElement = 0;
+        positionsSRVDesc.BufferEx.NumElements = agentsCount * 2;
+
         D3D11_BUFFER_DESC cbDesc;
 
         {
-            ZeroMemory(&positionsSRVDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-            positionsSRVDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
-            positionsSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-            positionsSRVDesc.Buffer.ElementOffset = 0;
-            positionsSRVDesc.Buffer.ElementWidth = sizeof(float) * 2u;
-
             V_RETURN(device->CreateShaderResourceView(
                 positionsFrontBuffer,
                 &positionsSRVDesc,
                 positionsSRV.GetFrontPtr()));
 
-            ID3D11ShaderResourceView* backSRV = nullptr;
             V_RETURN(device->CreateShaderResourceView(
                 positionsBackBuffer,
                 &positionsSRVDesc,
@@ -67,23 +69,22 @@ namespace DirectComputeSystems
         {
             D3D11_UNORDERED_ACCESS_VIEW_DESC positionsUAVDesc;
             ZeroMemory(&positionsUAVDesc, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
-            positionsUAVDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+            positionsUAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
             positionsUAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
             positionsUAVDesc.Buffer.NumElements = agentsCount;
+            positionsUAVDesc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_RAW;
 
             //params are swapped because we read from front
             //and write to back buffer at frame 0
-            ID3D11UnorderedAccessView* frontPositionsUAV = nullptr;
             V_RETURN(device->CreateUnorderedAccessView(
                 positionsFrontBuffer,
                 &positionsUAVDesc,
-                positionsUAV.GetBackPtr()));
+                positionsUAV.GetFrontPtr()));
 
-            ID3D11UnorderedAccessView* backPositionsUAV = nullptr;
             V_RETURN(device->CreateUnorderedAccessView(
                 positionsBackBuffer,
                 &positionsUAVDesc,
-                positionsUAV.GetFrontPtr()));
+                positionsUAV.GetBackPtr()));
         }
 
         {
@@ -93,6 +94,7 @@ namespace DirectComputeSystems
             cbDesc.ByteWidth = sizeof(float) * 2u * agentsCount;
             cbDesc.Usage = D3D11_USAGE_IMMUTABLE;
             cbDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+            cbDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
 
             D3D11_SUBRESOURCE_DATA InitData;
             ZeroMemory(&InitData, sizeof(D3D11_SUBRESOURCE_DATA));
@@ -101,13 +103,6 @@ namespace DirectComputeSystems
             V_RETURN(device->CreateBuffer(&cbDesc, &InitData, &targetsBuffer));
 
             ID3D11ShaderResourceView* targetsSRV = nullptr;
-
-            ZeroMemory(&positionsSRVDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-            positionsSRVDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
-            positionsSRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-            //positionsSRVDesc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
-            positionsSRVDesc.Buffer.ElementOffset = 0;
-            positionsSRVDesc.Buffer.ElementWidth = sizeof(float) * 2u;
 
             V_RETURN(device->CreateShaderResourceView(targetsBuffer, &positionsSRVDesc, &targetsSRV));
             deviceContext->CSSetShaderResources(1, 1, &targetsSRV);
@@ -152,11 +147,11 @@ namespace DirectComputeSystems
         constantBufferData.dt = dt;
         deviceContext->UpdateSubresource(constantBuffer, 0, nullptr, &constantBufferData, 0, 0);
 
-        deviceContext->Dispatch(agentsCount / 32u, 1, 1);
+        deviceContext->Dispatch(agentsCount / 32, 1, 1);
+
+        Unbind(deviceContext, agentsCount);
 
         positionsSRV.Swap();
         positionsUAV.Swap();
-
-        Unbind(deviceContext, agentsCount);
     }
 }

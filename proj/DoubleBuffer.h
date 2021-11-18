@@ -42,31 +42,48 @@ void DoubleBuffer<T>::Init(T* front, T* back)
 template<typename T>
 T* DoubleBuffer<T>::GetFront() const
 {
-	return frontBuffer;
+	if ((frontIndex % 2) == 0)
+	{
+		return frontBuffer;
+	}
+	return backBuffer;
 }
 
 template<typename T>
 T* DoubleBuffer<T>::GetBack() const
 {
+	if ((frontIndex % 2) == 1)
+	{
+		return frontBuffer;
+	}
 	return backBuffer;
 }
 
 template<typename T>
 T** DoubleBuffer<T>::GetFrontPtr()
 {
-	return &frontBuffer;
+	if ((frontIndex % 2) == 0)
+	{
+		return &frontBuffer;
+	}
+	return &backBuffer;
 }
 
 template<typename T>
 T** DoubleBuffer<T>::GetBackPtr()
 {
+	if ((frontIndex % 2) == 1)
+	{
+		return &frontBuffer;
+	}
 	return &backBuffer;
 }
 
 template<typename T>
 void DoubleBuffer<T>::Swap()
 {
-	std::swap(frontBuffer, backBuffer);
+	frontIndex++;
+	//std::swap(frontBuffer, backBuffer);
 }
 
 template<typename T>

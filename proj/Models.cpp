@@ -146,10 +146,10 @@ namespace Models
 		agentsCount = pAgentsCount;
 
 		D3D11_BUFFER_DESC bufferDesc;
-		D3D11_SUBRESOURCE_DATA InitData;
 
 		{
 			ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
+			D3D11_SUBRESOURCE_DATA InitData;
 			ZeroMemory(&InitData, sizeof(D3D11_SUBRESOURCE_DATA));
 
 			bufferDesc.ByteWidth = sizeOfPositions;
@@ -157,21 +157,21 @@ namespace Models
 			bufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_VERTEX_BUFFER;
 			//bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 			//bufferDesc.StructureByteStride = sizeof(float) * 2u;
-			//bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+			bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
 
 			InitData.pSysMem = positions;
+			InitData.SysMemPitch = sizeof(float) * 2 * agentsCount;
+
+			D3D11_BUFFER_DESC bufferDesc2 = bufferDesc;
+			D3D11_SUBRESOURCE_DATA InitData2 = InitData;
+			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, &InitData, Agents::gPositions.GetFrontPtr()));
 			
-			ID3D11Buffer* positionsBuffer0 = nullptr;
-			ID3D11Buffer* positionsBuffer1 = nullptr;
-
-			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, &InitData, &positionsBuffer0));
-			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc, &InitData, &positionsBuffer1));
-
-			Agents::gPositions.Init(positionsBuffer0, positionsBuffer1);
+			V_RETURN(pd3dDevice->CreateBuffer(&bufferDesc2, &InitData2, Agents::gPositions.GetBackPtr()));
 		}
 
 		{
 			ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
+			D3D11_SUBRESOURCE_DATA InitData;
 			ZeroMemory(&InitData, sizeof(D3D11_SUBRESOURCE_DATA));
 
 			bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
