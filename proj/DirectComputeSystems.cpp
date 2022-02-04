@@ -21,8 +21,12 @@ namespace DirectComputeSystems
     Constants constantBufferData{ 0.16f };
 
     ID3D11ComputeShader* steeringCS = nullptr;
+
     DoubleBuffer<ID3D11ShaderResourceView> positionsSRV;
     DoubleBuffer<ID3D11UnorderedAccessView> positionsUAV;
+
+    ID3D11Buffer* targetsBuffer = nullptr;
+    ID3D11ShaderResourceView* targetsSRV = nullptr;
 
     ID3D11Buffer* constantBuffer = NULL;
 
@@ -51,7 +55,7 @@ namespace DirectComputeSystems
         //positionsSRVDesc.Buffer.ElementWidth = sizeof(float) * 2u;
         positionsSRVDesc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
         positionsSRVDesc.BufferEx.FirstElement = 0;
-        positionsSRVDesc.BufferEx.NumElements = agentsCount * 2;
+        positionsSRVDesc.BufferEx.NumElements = agentsCount * 2u;
 
         D3D11_BUFFER_DESC cbDesc;
 
@@ -71,7 +75,7 @@ namespace DirectComputeSystems
             ZeroMemory(&positionsUAVDesc, sizeof(D3D11_UNORDERED_ACCESS_VIEW_DESC));
             positionsUAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
             positionsUAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-            positionsUAVDesc.Buffer.NumElements = agentsCount;
+            positionsUAVDesc.Buffer.NumElements = agentsCount * 2u;
             positionsUAVDesc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_RAW;
 
             //params are swapped because we read from front
@@ -88,21 +92,19 @@ namespace DirectComputeSystems
         }
 
         {
-            ID3D11Buffer* targetsBuffer = nullptr;
-
-            ZeroMemory(&cbDesc, sizeof(D3D11_BUFFER_DESC));
-            cbDesc.ByteWidth = sizeof(float) * 2u * agentsCount;
-            cbDesc.Usage = D3D11_USAGE_IMMUTABLE;
-            cbDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-            cbDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
+            D3D11_BUFFER_DESC cbDesc1;
+            ZeroMemory(&cbDesc1, sizeof(D3D11_BUFFER_DESC));
+            cbDesc1.ByteWidth = sizeof(float) * 2u * agentsCount;
+            cbDesc1.Usage = D3D11_USAGE_IMMUTABLE;
+            cbDesc1.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+            cbDesc1.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
 
             D3D11_SUBRESOURCE_DATA InitData;
             ZeroMemory(&InitData, sizeof(D3D11_SUBRESOURCE_DATA));
+
             InitData.pSysMem = &targets;
 
-            V_RETURN(device->CreateBuffer(&cbDesc, &InitData, &targetsBuffer));
-
-            ID3D11ShaderResourceView* targetsSRV = nullptr;
+            V_RETURN(device->CreateBuffer(&cbDesc1, &InitData, &targetsBuffer));
 
             V_RETURN(device->CreateShaderResourceView(targetsBuffer, &positionsSRVDesc, &targetsSRV));
             deviceContext->CSSetShaderResources(1, 1, &targetsSRV);
@@ -131,13 +133,14 @@ namespace DirectComputeSystems
     void Bind(ID3D11DeviceContext* deviceContext, uint32_t agentsCount)
     {
         deviceContext->CSSetShaderResources(0, 1, positionsSRV.GetFrontPtr());
-        deviceContext->CSSetUnorderedAccessViews(0, 1, positionsUAV.GetBackPtr(), new uint32_t[]{ agentsCount });
+        deviceContext->CSSetShaderResources(1, 1, &targetsSRV);
+        deviceContext->CSSetUnorderedAccessViews(0, 1, positionsUAV.GetBackPtr(), new uint32_t[]{ agentsCount * 2u });
     }
 
     void Unbind(ID3D11DeviceContext* deviceContext, uint32_t agentsCount)
     {
-        deviceContext->CSSetShaderResources(0, 1, new ID3D11ShaderResourceView * [] { nullptr });
-        deviceContext->CSSetUnorderedAccessViews(0, 1, new ID3D11UnorderedAccessView * [] { nullptr }, new uint32_t[]{ agentsCount });
+        deviceContext->CSSetShaderResources(0, 2, new ID3D11ShaderResourceView * [] { nullptr, nullptr });
+        deviceContext->CSSetUnorderedAccessViews(0, 1, new ID3D11UnorderedAccessView * [] { nullptr }, new uint32_t[]{ agentsCount * 2u });
     }
 
     void Update(ID3D11DeviceContext* deviceContext, uint32_t agentsCount, float dt)

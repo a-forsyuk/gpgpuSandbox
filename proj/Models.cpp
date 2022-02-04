@@ -196,17 +196,17 @@ namespace Models
 		Agents::gPositions.Release();;
 	}
 
-	void UpdateAgents(ID3D11DeviceContext* pd3dContext, XMFLOAT2* positions, size_t sizeOfPositions)
-	{
-		D3D11_MAPPED_SUBRESOURCE mappedSubresource;
-		ZeroMemory(&mappedSubresource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+	//void UpdateAgents(ID3D11DeviceContext* pd3dContext, XMFLOAT2* positions, size_t sizeOfPositions)
+	//{
+	//	D3D11_MAPPED_SUBRESOURCE mappedSubresource;
+	//	ZeroMemory(&mappedSubresource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 
-		HRESULT res = pd3dContext->Map(Agents::gPositions.GetFront(), 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
-		memcpy(mappedSubresource.pData, positions, sizeOfPositions);
-		pd3dContext->Unmap(Agents::gPositions.GetFront(), 0);
+	//	HRESULT res = pd3dContext->Map(Agents::gPositions.GetFront(), 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
+	//	memcpy(mappedSubresource.pData, positions, sizeOfPositions);
+	//	pd3dContext->Unmap(Agents::gPositions.GetFront(), 0);
 
-		res = pd3dContext->Map(Agents::gPositions.GetBack(), 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
-		memcpy(mappedSubresource.pData, positions, sizeOfPositions);
-		pd3dContext->Unmap(Agents::gPositions.GetBack(), 0);
-	}
+	//	res = pd3dContext->Map(Agents::gPositions.GetBack(), 0, D3D11_MAP_WRITE_DISCARD, NULL, &mappedSubresource);
+	//	memcpy(mappedSubresource.pData, positions, sizeOfPositions);
+	//	pd3dContext->Unmap(Agents::gPositions.GetBack(), 0);
+	//}
 }

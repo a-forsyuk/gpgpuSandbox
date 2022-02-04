@@ -25,6 +25,8 @@ constexpr uint32_t AgentsCount() { return 10000u; };
 
 constexpr size_t SizeOfPositions() { return AgentsCount() * sizeof(XMFLOAT2); }
 XMFLOAT2 positions[AgentsCount()];
+XMFLOAT2 targets[AgentsCount()];
+XMFLOAT4 colors[AgentsCount()];
 
 uint32_t widthNodesCount = 0;
 uint32_t heightNodesCount = 0;
@@ -63,10 +65,6 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	XMVECTORF32 Eye{ worldWidth / 2.0f, 0.0f, 100.0f };
 	XMVECTORF32 At{ worldWidth / 2.0f, worldHeight / 2.0f, 0.0f };
 	g_Camera.SetViewParams(Eye, At);
-
-	memset(positions, 0, SizeOfPositions());
-	XMFLOAT4 colors[AgentsCount()];
-	memset(colors, 0, SizeOfColors());
 
 	CUDASystems::MapColors((float*)colors);
 

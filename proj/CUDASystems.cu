@@ -54,8 +54,10 @@ namespace CUDASystems
 		memset(g_pAgentsPositions, 0, sizeof(float) * 2u * agentsCount);
 
 		g_pAgentsTargets = new float[agentsCount * 2u];
+		memset(g_pAgentsTargets, 0, sizeof(float) * 2u * agentsCount);
 
 		g_pAgentsColors = new float[agentsCount * 4u];
+		memset(g_pAgentsColors, 0, sizeof(float) * 4u * agentsCount);
 
 		g_pAgentsCount = agentsCount;
 
@@ -69,6 +71,7 @@ namespace CUDASystems
 		delete g_pAgentsGroup;
 
 		delete[] g_pAgentsPositions;
+		delete[] g_pAgentsTargets;
 		delete[] g_pAgentsColors;
 	}
 

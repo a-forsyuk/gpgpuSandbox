@@ -31,7 +31,7 @@ namespace Models
 		DirectX::XMFLOAT2* positions, size_t sizeOfPositions);
     void Release();
 
-	void UpdateAgents(ID3D11DeviceContext* pd3dContext, DirectX::XMFLOAT2* positions, size_t sizeOfPositions);
+	//void UpdateAgents(ID3D11DeviceContext* pd3dContext, DirectX::XMFLOAT2* positions, size_t sizeOfPositions);
 	HRESULT RenderTerrain(ID3D11DeviceContext* pd3dImmediateContext);
 
 }
